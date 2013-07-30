@@ -17,6 +17,51 @@
 
 // The GPG4Browsers crypto interface
 
+var openpgp_webcrypto = null, openpgp_webcryptoerr = null;
+
+function openpgp_crypto_WebCryptoInit(window) {
+    try {
+	/* Hoping for a full-blown implementation in the browser... */
+	if (window.crypto != null && window.crypto.subtle != null) {
+	    openpgp_webcrypto = window.crypto;
+	    return;
+	}
+	
+	/* Check for Netflix's NfWebCrypto implementation */
+     	try {
+	    openpgp_nfcrypto_init(window);
+	    if (window.nfCrypto != null && window.nfCrypto.subtle != null) {
+		openpgp_webcrypto = window.nfCrypto;
+		return;
+	    }
+	} catch (nferr) {
+	}
+	
+	try {
+	    openpgp_domcrypto_init(window);
+	    if (window.domCrypto != null && window.domCrypto.subtle != null) {
+		openpgp_webcrypto = window.domCrypto;
+		return;
+	    }
+	} catch (domerr) {
+	}
+
+	if (window.crypto != null) {
+	    window.alert("OpenPGP: Falling back to window.crypto without .subtle; expect problems down the road!");
+	    openpgp_webcrypto = window.crypto;
+	    return;
+	}
+
+	openpgp_webcryptoerr = "No WebCrypto polyfills found";
+    } catch (err) {
+	openpgp_webcryptoerr = "Exception caught: " + err;
+    }
+
+    if (openpgp_webcryptoerr != null) {
+	window.alert("Could not initialize the OpenPGP WebCrypto interface: " + openpgp_webcryptoerr);
+    }
+}
+
 /**
  * Encrypts data using the specified public key multiprecision integers 
  * and the specified algorithm.
@@ -213,50 +258,54 @@ function openpgp_crypto_verifySignature(algo, hash_algo, msg_MPIs, publickey_MPI
  * @param {Integer} algo Asymmetric cipher algorithm to use (See RFC4880 9.1)
  * @param {openpgp_type_mpi[]} publicMPIs Public key multiprecision integers 
  * of the private key 
- * @param {openpgp_type_mpi[]} secretMPIs Private key multiprecision 
- * integers which is used to sign the data
+ * @param {WebCrypto.Key} privateKey Private key used to sign the data
  * @param {String} data Data to be signed
- * @return {(String|openpgp_type_mpi)}
+ * @return {openpgp_promise} signed data (string)
  */
-function openpgp_crypto_signData(hash_algo, algo, publicMPIs, secretMPIs, data) {
+function openpgp_crypto_signData(hash_algo, algo, publicMPIs, privateKey, data) {
+	var res = new openpgp_promise();
 	
+	// FIXME: honor hash_algo, too :)
+
+	var algorithm;
+
 	switch(algo) {
 	case 1: // RSA (Encrypt or Sign) [HAC]  
 	case 2: // RSA Encrypt-Only [HAC]
 	case 3: // RSA Sign-Only [HAC]
-		var rsa = new RSA();
-		var d = secretMPIs[0].toBigInteger();
-		var n = publicMPIs[0].toBigInteger();
-		var m = openpgp_encoding_emsa_pkcs1_encode(hash_algo, data,publicMPIs[0].mpiByteLength);
-		util.print_debug("signing using RSA");
-		return rsa.sign(m, d, n).toMPI();
+		algorithm = { name: 'RSASSA-PKCS1-v1_5', params: { hash: 'SHA-256' } };
+		break;
 	case 17: // DSA (Digital Signature Algorithm) [FIPS186] [HAC]
-		var dsa = new DSA();
-		util.print_debug("DSA Sign: q size in Bytes:"+publicMPIs[1].getByteLength());
-		var p = publicMPIs[0].toBigInteger();
-		var q = publicMPIs[1].toBigInteger();
-		var g = publicMPIs[2].toBigInteger();
-		var y = publicMPIs[3].toBigInteger();
-		var x = secretMPIs[0].toBigInteger();
-		var m = data;
-		var result = dsa.sign(hash_algo,m, g, p, q, x);
-		util.print_debug("signing using DSA\n result:"+util.hexstrdump(result[0])+"|"+util.hexstrdump(result[1]));
-		return result[0]+result[1];
+		algorithm = { name: 'ECDSA', hash: { name: 'SHA-256' } };
+		break;
 	case 16: // Elgamal (Encrypt-Only) [ELGAMAL] [HAC]
-			util.print_debug("signing with Elgamal is not defined in the OpenPGP standard.");
-			return null;
+		res._onerror("signing with Elgamal is not defined in the OpenPGP standard.");
+		return res;
 	default:
-		return null;
+		res._onerror("unknown OpenPGP signing algorithm " + algo);
+		return res;
 	}	
+
+	var sign = openpgp_webcrypto.subtle.sign(algorithm, privateKey, util.str2Uint8Array(data));
+	sign.oncomplete = function (e) {
+		res._oncomplete(e.target.result);
+	}
+	sign.onerror = function (e) {
+		res._onerror(e.target.result);
+	}
+
+	return res;
 }
 
 /**
  * Create a hash on the specified data using the specified algorithm
  * @param {Integer} algo Hash algorithm type (see RFC4880 9.4)
  * @param {String} data Data to be hashed
- * @return {String} hash value
+ * @return {openpgp_promise} hash value (string)
  */
 function openpgp_crypto_hashData(algo, data) {
+	// FIXME: Implement this using WebCrypto :)
+
 	var hash = null;
 	switch(algo) {
 	case 1: // - MD5 [HAC]
@@ -282,7 +331,10 @@ function openpgp_crypto_hashData(algo, data) {
 	default:
 		break;
 	}
-	return hash;
+
+	var res = new openpgp_promise();
+	res._oncomplete(hash);
+	return res;
 }
 
 /**
@@ -399,9 +451,23 @@ function openpgp_crypto_testRSA(key){
 
 /**
  * @typedef {Object} openpgp_keypair
- * @property {openpgp_packet_keymaterial} privateKey 
- * @property {openpgp_packet_keymaterial} publicKey
+ * @property {WebCrypto.Key} privateKey 
+ * @property {WebCrypto.Key} publicKey
+ * @property {String} publicKeyArmored
  */
+
+function openpgp_keypair() {
+    this.privateKey = null;
+    this.publicKey = null;
+    this.publicKeyArmored = null;
+}
+
+function openpgp_keypair_raw() {
+    this.numBits = null;
+    this.publicKey = null;
+    this.privateKey = null;
+    this.symmetricEncryptionAlgorithm = null;
+}
 
 /**
  * Calls the necessary crypto functions to generate a keypair. 
@@ -410,21 +476,78 @@ function openpgp_crypto_testRSA(key){
  * @param {Integer} numBits Number of bits to make the key to be generated
  * @return {openpgp_keypair}
  */
-function openpgp_crypto_generateKeyPair(keyType, numBits, passphrase, s2kHash, symmetricEncryptionAlgorithm){
+function openpgp_crypto_generateKeyPair(keyType, numBits, symmetricEncryptionAlgorithm){
 	var privKeyPacket;
 	var publicKeyPacket;
 	var d = new Date();
 	d = d.getTime()/1000;
 	var timePacket = String.fromCharCode(Math.floor(d/0x1000000%0x100)) + String.fromCharCode(Math.floor(d/0x10000%0x100)) + String.fromCharCode(Math.floor(d/0x100%0x100)) + String.fromCharCode(Math.floor(d%0x100));
+
+	var res = new openpgp_promise();
+
 	switch(keyType){
 	case 1:
-	    var rsa = new RSA();
-	    var key = rsa.generate(numBits,"10001");
-	    privKeyPacket = new openpgp_packet_keymaterial().write_private_key(keyType, key, passphrase, s2kHash, symmetricEncryptionAlgorithm, timePacket);
-	    publicKeyPacket =  new openpgp_packet_keymaterial().write_public_key(keyType, key, timePacket);
+	    /* FIXME: Make this work for encryption/decryption, too :) */
+	    var algo = {
+		name: 'RSASSA-PKCS1-v1_5',
+		params: {
+		    modulusLength: numBits,
+		    publicExponent: new Uint8Array([0x01, 0x00, 0x01])
+		}
+	    };
 	    break;
+
 	default:
-		util.print_error("Unknown keytype "+keyType)
+	    res._onerror("Unknown keytype "+keyType);
+	    return res;
 	}
-	return {privateKey: privKeyPacket, publicKey: publicKeyPacket};
+
+	var gen = openpgp_webcrypto.subtle.generateKey(algo, false, ["sign"]);
+
+	/* Pass the errors straight on to the returned promise */
+	gen.onerror = function (e) {
+	    res._onerror(e.target.result);
+	};
+
+	gen.oncomplete = function (key) {
+	    switch (keyType) {
+	    case 1:
+		var keyPair = new openpgp_keypair_raw();
+
+		keyPair.numBits = numBits;
+		keyPair.publicKey = key.target.result.publicKey;
+		keyPair.privateKey = key.target.result.privateKey;
+		keyPair.symmetricEncryptionAlgorithm = symmetricEncryptionAlgorithm;
+		keyPair.timePacket = timePacket;
+		res._oncomplete(keyPair);
+		break;
+
+	    default:
+		res._onerror("We shouldn't have reached openpgp_crypto_generateKeyPair.gen.oncomplete() with an unknown keytype " + keyType);
+	     	break;
+	    }
+	};
+
+	return res;
+}
+
+function openpgp_crypto_exportKey(format, key) {
+    var res = new openpgp_promise();
+
+    var exp = openpgp_webcrypto.subtle.exportKey(format, key);
+
+    exp.onerror = function (e) {
+	res._onerror(e.target.result);
+    }
+
+    exp.oncomplete = function (e) {
+	try {
+	    res._oncomplete(e.target.result);
+	} catch (err) {
+	    // FIXME: Bah, we don't really need this level of detail
+	    res._onerror("openpgp_crypto_exportKey.res._oncomplete failed: " + err);
+	}
+    }
+
+    return res;
 }

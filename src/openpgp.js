@@ -41,6 +41,7 @@ function _openpgp () {
 		this.config.read();
 		this.keyring = new openpgp_keyring();
 		this.keyring.init();
+		openpgp_crypto_WebCryptoInit(window);
 	}
 	
 	/**
@@ -406,6 +407,48 @@ function _openpgp () {
 	}
 	
 	/**
+	 * FIXME FIXME FIXME... this is beyond insane.  Quite obviously,
+	 * it will be heavily reworked ASAP :)
+	 */
+	function openpgp_der_to_rsa_key(der) {
+		if (der[0] != 48)
+			throw "Expected a starting sequence, got " + der[0];
+		if (der[1] >= 128)
+			throw "Expected a definite form length for the first sequence, got" + der[1];
+		else if (der[1] != der.length - 2)
+			throw "Length mismatch for the first sequence: expected " + (der.length - 2) + ", got " + der[1];
+		if (der[2] != 48)
+			throw "Expected an OID sequence, got " + der[2];
+		if (der[3] >= 128)
+			throw "Expected a definite form length for the OID sequence, got " + der[3];
+		var next = der[3] + 4;
+		if (der[next] != 3)
+			throw "Expected a bit string, got " + der[next];
+		if (der[next + 1] != 2 + 65 + 2 + 3 + 3)
+			throw "Length mismatch for the bitstring for a 512-bit key and 24-bit exponent: expected " + (2 + 65 + 2 + 3 + 3) + ", got " + der[next + 1];
+		if (der[next + 2] != 0)
+			throw "Trailing bits mismatch for the encompassing bitstring, expected 0, got " + der[next + 2];
+		if (der[next + 3] != 48)
+			throw "Expected a bit string sequence, got " + der[next + 3];
+		if (der[next + 4] != 2 + 65 + 2 + 3)
+			throw "Length mismatch for the key integer, expected " + (2 + 65 + 2 + 3) + ", got " + der[next + 4];
+		if (der[next + 5] != 2)
+			throw "Expected a key integer, got " + der[next + 5];
+		if (der[next + 6] != 65)
+			throw "Length mismatch for the 512-bit key: expected 65, got " + der[next + 6];
+		var keyOfs = next + 7, keyLen = der[next + 6];
+		/* Baaaa! */
+		keyOfs = keyOfs + 1; keyLen = keyLen - 1;
+		if (der[keyOfs + keyLen] != 2)
+			throw "Expected an exponent integer, got " + der[keyOfs + keyLen];
+		if (der[keyOfs + keyLen + 1] != 3)
+			throw "Length mismatch for the 24-bit exponent: expected 3, got " + der[keyOfs + keyLen + 1];
+		var expOfs = keyOfs + keyLen + 2, expLen = der[keyOfs + keyLen + 1];
+		
+		return { key: der.subarray(keyOfs, keyOfs + keyLen), exp: der.subarray(expOfs, expOfs + expLen) }
+	}
+
+	/**
 	 * generates a new key pair for openpgp. Beta stage. Currently only 
 	 * supports RSA keys, and no subkeys.
 	 * @param {Integer} keyType to indicate what type of key to make. 
@@ -419,30 +462,70 @@ function _openpgp () {
 	 * privateKeyArmored: [string], publicKeyArmored: [string]}
 	 */
 	function generate_key_pair(keyType, numBits, userId, passphrase){
+		var res = new openpgp_promise();
+
 		var userIdPacket = new openpgp_packet_userid();
 		var userIdString = userIdPacket.write_packet(userId);
 		
-		var keyPair = openpgp_crypto_generateKeyPair(keyType,numBits, passphrase, openpgp.config.config.prefer_hash_algorithm, 3);
-		var privKeyString = keyPair.privateKey;
-		var privKeyPacket = new openpgp_packet_keymaterial().read_priv_key(privKeyString.string,3,privKeyString.string.length);
-		if(!privKeyPacket.decryptSecretMPIs(passphrase))
-		    util.print_error('Issue creating key. Unable to read resulting private key');
-		var privKey = new openpgp_msg_privatekey();
-		privKey.privateKeyPacket = privKeyPacket;
-		privKey.getPreferredSignatureHashAlgorithm = function(){return openpgp.config.config.prefer_hash_algorithm};//need to override this to solve catch 22 to generate signature. 8 is value for SHA256
-		
-		var publicKeyString = privKey.privateKeyPacket.publicKey.data;
-		var hashData = String.fromCharCode(0x99)+ String.fromCharCode(((publicKeyString.length) >> 8) & 0xFF) 
-			+ String.fromCharCode((publicKeyString.length) & 0xFF) +publicKeyString+String.fromCharCode(0xB4) +
-			String.fromCharCode((userId.length) >> 24) +String.fromCharCode(((userId.length) >> 16) & 0xFF) 
-			+ String.fromCharCode(((userId.length) >> 8) & 0xFF) + String.fromCharCode((userId.length) & 0xFF) + userId
-		var signature = new openpgp_packet_signature();
-		signature = signature.write_message_signature(16,hashData, privKey);
-		var publicArmored = openpgp_encoding_armor(4, keyPair.publicKey.string + userIdString + signature.openpgp );
+		var keyPair = null, privKey = null, pubKey = null;
+		var publicKeyString = null, publicKeyStringFull = null, publicKeyMat = null;
 
-		var privArmored = openpgp_encoding_armor(5,privKeyString.string+userIdString+signature.openpgp);
-		
-		return {privateKey : privKey, privateKeyArmored: privArmored, publicKeyArmored: publicArmored}
+		pass_error = function (e) {
+			res._onerror(e);
+		}
+
+		sign_oncomplete = function (sig) {
+			var publicArmored = openpgp_encoding_armor(4, publicKeyStringFull + userIdString + sig.openpgp );
+			var result = new openpgp_keypair();
+			result.privateKey = keyPair.privateKey;
+			result.publicKey = keyPair.publicKey;
+			result.publicKeyArmored = publicArmored;
+			res._oncomplete(result);
+		}
+
+		exp_oncomplete = function (exp) {
+			try {
+				var rsa = openpgp_der_to_rsa_key(exp);
+				var keyStr = util.hexidump(rsa.key), expStr = util.hexidump(rsa.exp);
+				var rsaObj = new RSA();
+				var rsaKey = new rsaObj.keyObject();
+				rsaKey.n = new BigInteger(keyStr, 16);
+				rsaKey.ee = new BigInteger(expStr, 16);
+				var pk = new openpgp_packet_keymaterial().write_public_key(keyType, rsaKey, keyPair.timePacket);
+				publicKeyString = pk.body;
+				publicKeyStringFull = pk.string;
+				publicKeyMat = new openpgp_packet_keymaterial().read_pub_key(publicKeyString, 0, publicKeyString.length);
+
+				var hashData = String.fromCharCode(0x99)+ String.fromCharCode(((publicKeyString.length) >> 8) & 0xFF) 
+					+ String.fromCharCode((publicKeyString.length) & 0xFF) +publicKeyString+String.fromCharCode(0xB4) +
+					String.fromCharCode((userId.length) >> 24) +String.fromCharCode(((userId.length) >> 16) & 0xFF) 
+					+ String.fromCharCode(((userId.length) >> 8) & 0xFF) + String.fromCharCode((userId.length) & 0xFF) + userId;
+				var signature = new openpgp_packet_signature();
+				signature.write_message_signature(16,hashData, privKey, publicKeyMat).then(sign_oncomplete, pass_error);
+			} catch (err) {
+				res._onerror("openpgp.generate_key_pair.exp_oncomplete: exception caught: " + err);
+			}
+		}
+
+		gen_oncomplete = function (pair) {
+			try {
+				keyPair = pair;
+				privKey = pair.privateKey;
+				pubKey = pair.publicKey;
+
+				if (!pubKey.extractable) {
+					res._onerror("openpgp.generate_key_pair(): WebCrypto generated a non-exportable public key " + pubKey);
+					return;
+				}
+				openpgp_crypto_exportKey("spki", pubKey).then(exp_oncomplete, pass_error);
+			} catch (err) {
+				// FIXME: we don't really need this level of detail
+				res._onerror("openpgp.generate_keypair.gen_oncomplete: exception caught: " + err);
+			}
+		}
+
+		openpgp_crypto_generateKeyPair(keyType,numBits, openpgp.config.config.prefer_hash_algorithm).then(gen_oncomplete, pass_error);
+		return res;
 	}
 	
 	this.generate_key_pair = generate_key_pair;

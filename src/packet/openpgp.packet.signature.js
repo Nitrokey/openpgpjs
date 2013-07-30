@@ -212,12 +212,14 @@ function openpgp_packet_signature() {
 	 * This can be only used on text data
 	 * @param {Integer} signature_type should be 1 (one) 
 	 * @param {String} data data to be signed
-	 * @param {openpgp_msg_privatekey} privatekey private key used to sign the message. (secMPIs MUST be unlocked)
-	 * @return {String} string representation of a signature packet
+	 * @param {WebCrypto.Key} privatekey private key used to sign the message.
+	 * @param {openpgp_message_publickey} publickey public key used to sign the message.
+	 * @return {openpgp_promise} string representation of a signature packet
 	 */
-	function write_message_signature(signature_type, data, privatekey) {
-		var publickey = privatekey.privateKeyPacket.publicKey;
-		var hash_algo = privatekey.getPreferredSignatureHashAlgorithm();
+	function write_message_signature(signature_type, data, privatekey, publickey) {
+		var res = new openpgp_promise();
+
+		var hash_algo = 8; // FIXME: privatekey.getPreferredSignatureHashAlgorithm();
 		var result = String.fromCharCode(4); 
 		result += String.fromCharCode(signature_type);
 		result += String.fromCharCode(publickey.publicKeyAlgorithm);
@@ -228,7 +230,7 @@ function openpgp_packet_signature() {
 				String.fromCharCode((d >> 16) & 0xFF) +
 				String.fromCharCode((d >> 8) & 0xFF) + 
 				String.fromCharCode(d & 0xFF));
-		var issuersubpacket = write_sub_signature_packet(16, privatekey.getKeyId());
+		var issuersubpacket = write_sub_signature_packet(16, publickey.getKeyId());
 		result += String.fromCharCode(((datesubpacket.length + issuersubpacket.length) >> 8) & 0xFF);
 		result += String.fromCharCode ((datesubpacket.length + issuersubpacket.length) & 0xFF);
 		result += datesubpacket;
@@ -243,16 +245,32 @@ function openpgp_packet_signature() {
 		trailer += String.fromCharCode((result.length) & 0xFF);
 		var result2 = String.fromCharCode(0);
 		result2 += String.fromCharCode(0);
-		var hash = openpgp_crypto_hashData(hash_algo, data+result+trailer);
-		util.print_debug("DSA Signature is calculated with:|"+data+result+trailer+"|\n"+util.hexstrdump(data+result+trailer)+"\n hash:"+util.hexstrdump(hash));
-		result2 += hash.charAt(0);
-		result2 += hash.charAt(1);
-		result2 += openpgp_crypto_signData(hash_algo,privatekey.privateKeyPacket.publicKey.publicKeyAlgorithm,
-				publickey.MPIs,
-				privatekey.privateKeyPacket.secMPIs,
-				data+result+trailer);
-		return {openpgp: (openpgp_packet.write_packet_header(2, (result+result2).length)+result + result2), 
-				hash: util.get_hashAlgorithmString(hash_algo)};
+
+		var hash = null;
+
+		function pass_error(e) {
+			res._onerror(e);
+		}
+
+		function sign_oncomplete(sdata) {
+			result2 += sdata;
+			res._oncomplete({openpgp: (openpgp_packet.write_packet_header(2, (result+result2).length)+result + result2), 
+					hash: util.get_hashAlgorithmString(hash_algo)});
+		}
+
+		function hash_oncomplete(hdata) {
+			hash = hdata;
+			result2 += hash.charAt(0);
+			result2 += hash.charAt(1);
+
+			openpgp_crypto_signData(hash_algo,publickey.publicKeyAlgorithm,
+					publickey.MPIs,
+					privatekey,
+					data+result+trailer).then(sign_oncomplete, pass_error);
+		}
+
+		openpgp_crypto_hashData(hash_algo, data+result+trailer).then(hash_oncomplete, pass_error);
+		return res;
 	}
 	/**
 	 * creates a string representation of a sub signature packet (See RFC 4880 5.2.3.1)
