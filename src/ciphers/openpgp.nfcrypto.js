@@ -333,6 +333,14 @@ function openpgp_nfcrypto_init(window) {
             enumerable: true,
             get: function get() { return result; }
         });
+        Object.defineProperty(op, 'signature', {
+            enumerable: true,
+            get: function get() { return signature; }
+        });
+        Object.defineProperty(op, 'buffer', {
+            enumerable: true,
+            get: function get() { return buffer; }
+        });
 
         // the methods of the CryptoOperation interface (NOT IMPLEMENTED)
         op.process = function (buffer) { }
