@@ -54,7 +54,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 End of (PolyCrypt) License Terms and Conditions.
 */
 
-(function (window) {
+function openpgp_nfcrypto_init(window) {
     'use strict';
 
     var navPlugin = window.navigator.plugins['NfWebCrypto'] || window.navigator.plugins['NetflixHelper'],
@@ -529,7 +529,6 @@ End of (PolyCrypt) License Terms and Conditions.
 
     // Runs immediately. Loads the plugin and starts the native code.
     function onLoad() {
-        window.removeEventListener('load', onLoad);
         var body = window.document.body;
 
         var pluginObject = window.document.createElement('object');
@@ -552,7 +551,14 @@ End of (PolyCrypt) License Terms and Conditions.
         // Insert the plugin object into the document body. This starts the
         // native code. This should be done last.
         body.appendChild(pluginObject);
+    	window.removeEventListener('load', onLoad);
     };
     window.addEventListener('load', onLoad);
 
-})(window);
+    /* Hm, how about we just run onLoad right now? */
+    try {
+	onLoad();
+    } catch (onLoadErr) {
+	console.log("Probably not fatal, but NfWebCrypto.onLoad() straight up failed: " + onLoadErr);
+    }
+}
