@@ -264,6 +264,7 @@ function openpgp_crypto_verifySignature(algo, hash_algo, msg_MPIs, publickey_MPI
  */
 function openpgp_crypto_signData(hash_algo, algo, publicMPIs, privateKey, data) {
 	var res = new openpgp_promise();
+	var toMPI = false;
 	
 	// FIXME: honor hash_algo, too :)
 
@@ -274,6 +275,7 @@ function openpgp_crypto_signData(hash_algo, algo, publicMPIs, privateKey, data) 
 	case 2: // RSA Encrypt-Only [HAC]
 	case 3: // RSA Sign-Only [HAC]
 		algorithm = { name: 'RSASSA-PKCS1-v1_5', params: { hash: 'SHA-256' } };
+		toMPI = true;
 		break;
 	case 17: // DSA (Digital Signature Algorithm) [FIPS186] [HAC]
 		algorithm = { name: 'ECDSA', hash: { name: 'SHA-256' } };
@@ -288,7 +290,15 @@ function openpgp_crypto_signData(hash_algo, algo, publicMPIs, privateKey, data) 
 
 	var sign = openpgp_webcrypto.subtle.sign(algorithm, privateKey, util.str2Uint8Array(data));
 	sign.oncomplete = function (e) {
-		res._oncomplete(e.target.result);
+		var r;
+		if (!toMPI) {
+			r = e.target.result;
+		} else {
+			var s = util.hexidump(e.target.result);
+			var bi = new BigInteger(s, 16);
+			r = bi.toMPI();
+		}
+		res._oncomplete(r);
 	}
 	sign.onerror = function (e) {
 		res._onerror(e.target.result);
