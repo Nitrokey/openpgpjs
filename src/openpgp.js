@@ -407,45 +407,28 @@ function _openpgp () {
 	}
 	
 	/**
-	 * FIXME FIXME FIXME... this is beyond insane.  Quite obviously,
-	 * it will be heavily reworked ASAP :)
+	 * Extract an RSA keypair from an SPKI DER sequence.
 	 */
 	function openpgp_der_to_rsa_key(der) {
-		if (der[0] != 48)
-			throw "Expected a starting sequence, got " + der[0];
-		if (der[1] >= 128)
-			throw "Expected a definite form length for the first sequence, got" + der[1];
-		else if (der[1] != der.length - 2)
-			throw "Length mismatch for the first sequence: expected " + (der.length - 2) + ", got " + der[1];
-		if (der[2] != 48)
-			throw "Expected an OID sequence, got " + der[2];
-		if (der[3] >= 128)
-			throw "Expected a definite form length for the OID sequence, got " + der[3];
-		var next = der[3] + 4;
-		if (der[next] != 3)
-			throw "Expected a bit string, got " + der[next];
-		if (der[next + 1] != 2 + 65 + 2 + 3 + 3)
-			throw "Length mismatch for the bitstring for a 512-bit key and 24-bit exponent: expected " + (2 + 65 + 2 + 3 + 3) + ", got " + der[next + 1];
-		if (der[next + 2] != 0)
-			throw "Trailing bits mismatch for the encompassing bitstring, expected 0, got " + der[next + 2];
-		if (der[next + 3] != 48)
-			throw "Expected a bit string sequence, got " + der[next + 3];
-		if (der[next + 4] != 2 + 65 + 2 + 3)
-			throw "Length mismatch for the key integer, expected " + (2 + 65 + 2 + 3) + ", got " + der[next + 4];
-		if (der[next + 5] != 2)
-			throw "Expected a key integer, got " + der[next + 5];
-		if (der[next + 6] != 65)
-			throw "Length mismatch for the 512-bit key: expected 65, got " + der[next + 6];
-		var keyOfs = next + 7, keyLen = der[next + 6];
-		/* Baaaa! */
-		keyOfs = keyOfs + 1; keyLen = keyLen - 1;
-		if (der[keyOfs + keyLen] != 2)
-			throw "Expected an exponent integer, got " + der[keyOfs + keyLen];
-		if (der[keyOfs + keyLen + 1] != 3)
-			throw "Length mismatch for the 24-bit exponent: expected 3, got " + der[keyOfs + keyLen + 1];
-		var expOfs = keyOfs + keyLen + 2, expLen = der[keyOfs + keyLen + 1];
-		
-		return { key: der.subarray(keyOfs, keyOfs + keyLen), exp: der.subarray(expOfs, expOfs + expLen) }
+		var wrap = new openpgp_encoding_der().parse(der);
+		if (wrap.bgrosssize != der.length)
+			throw "The DER object did not encompass the full array, expected " + der.length + " bytes, only got " + wrap.bgrosssize;
+
+		if (wrap.type != wrap.t["sequence"] ||
+		    wrap.value[0].type != wrap.t["sequence"] ||
+		    wrap.value[0].value[0].type != wrap.t["objectIdentifier"] ||
+		    wrap.value[1].type != wrap.t["bitString"] ||
+		    wrap.value[1].value.type != wrap.t["sequence"] ||
+		    wrap.value[1].value.value.length != 2 ||
+		    wrap.value[1].value.value[0].type != wrap.t["integer"] ||
+		    wrap.value[1].value.value[1].type != wrap.t["integer"])
+			throw "Unexpected formatting of the SPKI DER keypair";
+
+		var res = {
+			key: wrap.value[1].value.value[0].bcontent,
+			exp: wrap.value[1].value.value[1].bcontent
+		};
+		return res;
 	}
 
 	/**
