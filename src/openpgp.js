@@ -395,18 +395,42 @@ function _openpgp () {
 	/**
 	 * creates a binary string representation a signed message.
 	 * The message will be signed with the specified private key.
-	 * @param {Object} privatekey {obj: [openpgp_msg_privatekey]}
+	 * @param {WebCrypto Key} privatekey
 	 * - the private key to be used to sign the message 
+	 * @param {String} publicKey
+	 * - the armored public key to be used to sign the message
 	 * @param {String} messagetext message text to sign
 	 * @return {Object} {Object: text [String]}, openpgp: {String} a binary
 	 *  string representation of the message which can be OpenPGP
 	 *   armored(openpgp) and a text representation of the message (text). 
 	 * This can be directly used to OpenPGP armor the message
 	 */
-	function write_signed_message(privatekey, messagetext) {
-		var sig = new openpgp_packet_signature().write_message_signature(1, messagetext.replace(/\r\n/g,"\n").replace(/\n/,"\r\n"), privatekey);
-		var result = {text: messagetext.replace(/\r\n/g,"\n").replace(/\n/,"\r\n"), openpgp: sig.openpgp, hash: sig.hash};
-		return openpgp_encoding_armor(2,result, null, null)
+	function write_signed_message(privatekey, publickey, messagetext) {
+		var res = new openpgp_promise();
+		var sanitized = messagetext.replace(/\r\n/g,"\n").replace(/\n/,"\r\n");
+		
+		function pass_error(e) {
+			res._onerror(e);
+		}
+
+		function sign_complete(sig) {
+			var result = {text: sanitized, openpgp: sig.openpgp, hash: sig.hash};
+			res._oncomplete(openpgp_encoding_armor(2,result, null, null));
+		}
+
+		var publicKeyMat = null;
+		if (typeof(publickey) == "string" || publickey instanceof String)
+		{
+			var pk = openpgp_encoding_deArmor(publickey).openpgp;
+			publicKeyMat = new openpgp_packet_keymaterial();
+			publicKeyMat.read_pub_key(pk, 2, pk.length - 2);
+		} else {
+			throw 'FIXME: support WebCrypto Key objects directly here';
+		}
+		var signature = new openpgp_packet_signature();
+		signature.write_message_signature(1, sanitized, privatekey, publicKeyMat).
+		    then(sign_complete, pass_error);
+		return res;
 	}
 	
 	/**
