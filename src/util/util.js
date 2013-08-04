@@ -300,6 +300,19 @@ var Util = function() {
 		}
 		return "unknown";
 	};
+
+	this.subarray = function(arr, start, end) {
+	    if (start == null)
+		start = 0;
+	    if (end == null)
+		end = arr.length;
+	    if (arr.subarray != null)
+		return arr.subarray(start, end);
+	    else if (arr.slice != null)
+		return arr.slice(start, end);
+	    else
+		throw 'Weird array ' + typeof(arr) + ', neither "subarray" nor "slice" defined';
+	};
 };
 
 /**
