@@ -100,19 +100,19 @@ function openpgp_encoding_der()
 		}
 
 		this.bgrosssize = objOffset + objLen;
-		this.bheader = arr.subarray(0, objOffset);
+		this.bheader = util.subarray(arr, 0, objOffset);
 		this.bsize = objLen;
-		this.bcontent = arr.subarray(objOffset, objOffset + objLen);
+		this.bcontent = util.subarray(arr, objOffset, objOffset + objLen);
 
 		this.type = arr[0] & (255 - 32);
 		if (this.type == this.t["sequence"]) {
-			var carr = this.bcontent.subarray(0);
+			var carr = util.subarray(this.bcontent, 0);
 			var res = [];
 
 			while (carr.length > 0) {
 				var memb = new openpgp_encoding_der().parse(carr);
 				res.push(memb);
-				carr = carr.subarray(memb.bgrosssize, carr.length);
+				carr = util.subarray(carr, memb.bgrosssize, carr.length);
 			}
 			this.value = res;
 		} else if (this.type == this.t["bitString"]) {
@@ -120,7 +120,7 @@ function openpgp_encoding_der()
 				throw "Empty bit string";
 			if (this.bcontent[0] != 0)
 				throw "Bit strings with spare bits not supported yet";
-			var carr = this.bcontent.subarray(1);
+			var carr = util.subarray(this.bcontent, 1);
 			var res = new openpgp_encoding_der().parse(carr);
 			if (res.bgrosssize != carr.length)
 				throw "Bit string enveloped object size mismatch, expected " + carr.length + ", got " + res.bgrosssize;
