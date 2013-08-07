@@ -432,6 +432,11 @@ function openpgp_nfcrypto_init(window) {
             }
         });
 
+	op.then = function (resolve, reject) {
+	    op.oncomplete = resolve;
+	    op.onerror = reject;
+	}
+
         // Register for events coming back
         window.addEventListener('message', messenger._handleMessage);
 
