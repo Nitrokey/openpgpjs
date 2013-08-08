@@ -24,12 +24,12 @@
  * SUCH DAMAGE.
  */
 
-function openpgp_domcrypto_init(window)
+function openpgp_domcrypt_init(window)
 {
     var that = {}, thatsubtle = {};
 
     if (window.mozCipher == null) {
-	throw("domcrypto extension not found, unable to create window.domCrypto");
+	throw("domcrypt extension not found, unable to create window.domCrypto");
     }
 
     thatsubtle.generateKey = function (algo, flag, usage) {
@@ -38,13 +38,14 @@ function openpgp_domcrypto_init(window)
 	gen = new openpgp_promise();
 	res = window.mozCipher.pk.generateKeypair(function (keyPair) {
 	    if (keyPair == null)
-		gen._onerror('The domcrypto framework could not generate a key pair');
+		gen._onerror('The domcrypt framework could not generate a key pair');
 	    else
 		gen._oncomplete(keyPair);
 	});
 	return gen;
     }
 
-    window.domCrypto = that;
-    window.domCrypto.subtle = thatsubtle;
+    return { crypto: that, subtle: thatsubtle };
 }
+
+openpgp_webcrypto_provider_add('domcrypt', openpgp_domcrypt_init);

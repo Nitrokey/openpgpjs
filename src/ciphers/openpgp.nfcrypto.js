@@ -571,7 +571,12 @@ function openpgp_nfcrypto_init(window) {
     /* Hm, how about we just run onLoad right now? */
     try {
 	onLoad();
+
+	return { crypto: window.nfCrypto, subtle: window.nfCrypto.subtle };
     } catch (onLoadErr) {
 	console.log("Probably not fatal, but NfWebCrypto.onLoad() straight up failed: " + onLoadErr);
     }
+    return null;
 }
+
+openpgp_webcrypto_provider_add('nfwebcrypto', openpgp_nfcrypto_init);

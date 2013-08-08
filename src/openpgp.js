@@ -34,11 +34,15 @@ function _openpgp () {
 	/**
 	 * initializes the library:
 	 * - reading the keyring from local storage
+	 * - initializing the WebCrypto provider and support
 	 * - reading the config from local storage
 	 */
-	function init() {
+	function init(webcrypto_preferred) {
 		this.config = new openpgp_config();
 		this.config.read();
+
+		openpgp_webcrypto_init(window, webcrypto_preferred);
+
 		this.keyring = new openpgp_keyring();
 		this.keyring.init();
 	}
