@@ -166,12 +166,20 @@ function openpgp_crypto_generateKeyPair(keyType, numBits, symmetricEncryptionAlg
 	var timePacket = String.fromCharCode(Math.floor(d/0x1000000%0x100)) + String.fromCharCode(Math.floor(d/0x10000%0x100)) + String.fromCharCode(Math.floor(d/0x100%0x100)) + String.fromCharCode(Math.floor(d%0x100));
 
 	var res = new openpgp_promise();
-	var algo;
+	var algoSign, algoEnc;
+	var signPair, encPair;
 	
 	switch (keyType) {
 	case 1:
-		algo = {
+		algoSign = {
 			name: 'RSASSA-PKCS1-v1_5',
+			params: {
+				modulusLength: numBits,
+				publicExponent: new Uint8Array([0x01, 0x00, 0x01])
+			}
+		};
+		algoEnc = {
+			name: 'RSAES-PKCS1-v1_5',
 			params: {
 				modulusLength: numBits,
 				publicExponent: new Uint8Array([0x01, 0x00, 0x01])
@@ -184,31 +192,58 @@ function openpgp_crypto_generateKeyPair(keyType, numBits, symmetricEncryptionAlg
 		return res;
 	}
 
-	openpgp_webcrypto_subtle.generateKey(algo, false, ["sign"]).then(
-		function (key) {
-			switch (keyType) {
-			case 1:
-				var keyPair = new openpgp_keypair_raw();
-
-				keyPair.numBits = numBits;
-				keyPair.publicKey = key.target.result.publicKey;
-				keyPair.privateKey = key.target.result.privateKey;
-				keyPair.symmetricEncryptionAlgorithm = symmetricEncryptionAlgorithm;
-				keyPair.timePacket = timePacket;
-				openpgp_webcrypto_tag(keyPair.publicKey, numBits);
-				openpgp_webcrypto_tag(keyPair.privateKey, numBits);
-				res._oncomplete(keyPair);
-				break;
-			default:
-				res._onerror("We shouldn't have reached generateKeyPair.gen.oncomplete() with an unknown key type " + keyType);
-				break;
-			}
-		},
-		function (e) {
+	function pass_error(e) {
+		if (e.target != null && e.target.result != null)
 			res._onerror(e.target.result);
-		}
-	);
+		else
+			res._onerror(e);
+	}
 
+	function enc_generated(key) {
+		switch (keyType) {
+		case 1:
+			encPair = new openpgp_keypair_raw();
+
+			encPair.numBits = numBits;
+			encPair.publicKey = key.target.result.publicKey;
+			encPair.privateKey = key.target.result.privateKey;
+			encPair.symmetricEncryptionAlgorithm = symmetricEncryptionAlgorithm;
+			encPair.timePacket = timePacket;
+			openpgp_webcrypto_tag(encPair.publicKey, numBits);
+			openpgp_webcrypto_tag(encPair.privateKey, numBits);
+
+			/* We're done, but ignore the encryption subkey for now. */
+			res._oncomplete(signPair);
+			break;
+		default:
+			res._onerror("We shouldn't have reached generateKeyPair.enc_generated() with an unknown key type " + keyType);
+			break;
+		}
+	}
+
+	function sign_generated(key) {
+		switch (keyType) {
+		case 1:
+			signPair = new openpgp_keypair_raw();
+
+			signPair.numBits = numBits;
+			signPair.publicKey = key.target.result.publicKey;
+			signPair.privateKey = key.target.result.privateKey;
+			signPair.symmetricEncryptionAlgorithm = symmetricEncryptionAlgorithm;
+			signPair.timePacket = timePacket;
+			openpgp_webcrypto_tag(signPair.publicKey, numBits);
+			openpgp_webcrypto_tag(signPair.privateKey, numBits);
+
+			/* OK, just for kicks, generate an encryption subkey. */
+			openpgp_webcrypto_subtle.generateKey(algoEnc, false, ["encrypt"]).then(enc_generated, pass_error);
+			break;
+		default:
+			res._onerror("We shouldn't have reached generateKeyPair.sign_generated() with an unknown key type " + keyType);
+			break;
+		}
+	}
+
+	openpgp_webcrypto_subtle.generateKey(algoSign, false, ["sign"]).then(sign_generated, pass_error);
 	return res;
 }
 

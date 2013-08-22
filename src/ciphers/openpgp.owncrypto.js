@@ -39,6 +39,7 @@ function openpgp_owncrypto_init(window)
 
 		switch (algo.name) {
 		case 'RSASSA-PKCS1-v1_5':
+		case 'RSAES-PKCS1-v1_5':
 		      break;
 
 		default:

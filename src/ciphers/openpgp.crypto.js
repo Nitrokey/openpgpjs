@@ -396,6 +396,7 @@ function openpgp_crypto_stashKey_own(pair, numBits){
 	var aid, val;
 	switch (priv.algorithm.name) {
 		case 'RSASSA-PKCS1-v1_5':
+		case 'RSAES-PKCS1-v1_5':
 			aid = priv.opgp.own.k.n.toString(16).substring(0, 16);
 			val = {
 				type: 'RSA',
@@ -485,8 +486,20 @@ function openpgp_crypto_digKey_own(algo, numBits) {
 	}
 
 	var pair;
+	var privKeyUsage = null, pubKeyUsage = null;
+
 	switch (algo.name) {
 		case 'RSASSA-PKCS1-v1_5':
+			privKeyUsage = ['sign'];
+			pubKeyUsage = ['verify'];
+			/* FALLTHROUGH */
+
+		case 'RSAES-PKCS1-v1_5':
+			if (privKeyUsage == null) {
+				privKeyUsage = ['decrypt'];
+				pubKeyUsage = ['encrypt'];
+			}
+
 			if (res.type != "RSA") {
 				console.error("OpenPGP.js error: wrong type for stashed " + kname + "." + id + ": expected RSA, got " + res.type);
 				return null;
@@ -503,7 +516,7 @@ function openpgp_crypto_digKey_own(algo, numBits) {
 				return null;
 			}
 
-			pair = openpgp_crypto_pair_from_RSA(key, numBits, algo, ["sign"], ["verify"]);
+			pair = openpgp_crypto_pair_from_RSA(key, numBits, algo, privKeyUsage, pubKeyUsage);
 			break;
 
 		default:
@@ -523,13 +536,23 @@ function openpgp_crypto_digKey_own(algo, numBits) {
 function openpgp_crypto_generateKeyPair_own(algo, passphrase, s2kHash, symmetricEncryptionAlgorithm){
 	var res = new openpgp_promise();
 	var numBits, pair;
+	var privKeyUsage = null, pubKeyUsage = null;
 
 	switch(algo.name){
 	case 'RSASSA-PKCS1-v1_5':
+	    privKeyUsage = ['sign'];
+	    pubKeyUsage = ['verify'];
+	    /* FALLTHROUGH */
+
+	case 'RSAES-PKCS1-v1_5':
+	    if (privKeyUsage == null) {
+		privKeyUsage = ['decrypt'];
+		pubKeyUsage = ['encrypt'];
+	    }
 	    numBits = algo.params.modulusLength;
 	    var rsa = new RSA();
 	    var key = rsa.generate(algo.params.modulusLength, util.hexidump(algo.params.publicExponent));
-	    pair = openpgp_crypto_pair_from_RSA(key, numBits, algo, ['sign'], ['verify']);
+	    pair = openpgp_crypto_pair_from_RSA(key, numBits, algo, privKeyUsage, pubKeyUsage);
 	    break;
 
 	default:
@@ -562,6 +585,7 @@ function openpgp_crypto_exportKey_own(format, key) {
 
 	switch (key.algorithm.name) {
 		case 'RSASSA-PKCS1-v1_5':
+		case 'RSAES-PKCS1-v1_5':
 			var d = new openpgp_encoding_der();
 			arr = d.build("sequence", [
 				d.build("sequence", [
