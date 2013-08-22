@@ -124,7 +124,13 @@ function openpgp_keypair_raw()
 function openpgp_crypto_exportKey(format, key) {
 	var res = new openpgp_promise();
 
-	openpgp_webcrypto_subtle.exportKey(format, key).then(
+	if (key.opgp == null || key.opgp.provider == null ||
+	    key.opgp.provider.subtle == null) {
+		res._onerror('Not an openpgp_webcrypto generated key: ' + key);
+		return res;
+	}
+
+	key.opgp.provider.subtle.exportKey(format, key).then(
 		function (e) {
 			try {
 				res._oncomplete(e.target.result);
@@ -137,6 +143,20 @@ function openpgp_crypto_exportKey(format, key) {
 			res._onerror(e.target.result);
 		});
 	return res;
+}
+
+function openpgp_webcrypto_tag(key, numBits)
+{
+	if (key.opgp == null)
+		key.opgp = {};
+
+	key.opgp.numBits = numBits;
+
+	key.opgp.provider = {
+		/* TODO: name */
+		crypto: openpgp_webcrypto,
+		subtle: openpgp_webcrypto_subtle
+	};
 }
 
 function openpgp_crypto_generateKeyPair(keyType, numBits, symmetricEncryptionAlgorithm)
@@ -175,6 +195,8 @@ function openpgp_crypto_generateKeyPair(keyType, numBits, symmetricEncryptionAlg
 				keyPair.privateKey = key.target.result.privateKey;
 				keyPair.symmetricEncryptionAlgorithm = symmetricEncryptionAlgorithm;
 				keyPair.timePacket = timePacket;
+				openpgp_webcrypto_tag(keyPair.publicKey, numBits);
+				openpgp_webcrypto_tag(keyPair.privateKey, numBits);
 				res._oncomplete(keyPair);
 				break;
 			default:
@@ -204,6 +226,12 @@ function openpgp_crypto_signData(hash_algo, algo, publicMPIs, privateKey, data) 
 	var res = new openpgp_promise();
 	var toMPI = false;
 	
+	if (privateKey.opgp == null || privateKey.opgp.provider == null ||
+	    privateKey.opgp.provider.subtle == null) {
+		res._onerror('Not an openpgp_webcrypto generated key: ' + privateKey);
+		return res;
+	}
+
 	// FIXME: honor hash_algo, too :)
 
 	var algorithm;
@@ -226,7 +254,7 @@ function openpgp_crypto_signData(hash_algo, algo, publicMPIs, privateKey, data) 
 		return res;
 	}	
 
-	var sign = openpgp_webcrypto_subtle.sign(algorithm, privateKey, util.str2Uint8Array(data));
+	var sign = privateKey.opgp.provider.subtle.sign(algorithm, privateKey, util.str2Uint8Array(data));
 	sign.oncomplete = function (e) {
 		var r;
 		if (!toMPI) {
