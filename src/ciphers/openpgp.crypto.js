@@ -224,9 +224,9 @@ function openpgp_crypto_signData_own(algo, key, message) {
 	
 	switch(algo.name) {
 	case 'RSASSA-PKCS1-v1_5':
-		m = openpgp_encoding_emsa_pkcs1_encode(8, util.bin2str(message), key.opgp_numBits / 8);
+		m = openpgp_encoding_emsa_pkcs1_encode(8, util.bin2str(message), key.opgp.numBits / 8);
 		rsa = new RSA();
-		ss = rsa.sign(m, key.opgp_key.d, key.opgp_key.n);
+		ss = rsa.sign(m, key.opgp.own.k.d, key.opgp.own.k.n);
 		sb = ss.toByteArray();
 		r = util.uint8concat([sb]);
 		break;
@@ -396,16 +396,16 @@ function openpgp_crypto_stashKey_own(pair, numBits){
 	var aid, val;
 	switch (priv.algorithm.name) {
 		case 'RSASSA-PKCS1-v1_5':
-			aid = priv.opgp_key.n.toString(16).substring(0, 16);
+			aid = priv.opgp.own.k.n.toString(16).substring(0, 16);
 			val = {
 				type: 'RSA',
 				numBits: numBits,
-				d: priv.opgp_key.d.toString(32),
-				e: priv.opgp_key.e.toString(32),
-				n: priv.opgp_key.n.toString(32),
-				p: priv.opgp_key.p.toString(32),
-				q: priv.opgp_key.q.toString(32),
-				u: priv.opgp_key.u.toString(32)
+				d: priv.opgp.own.k.d.toString(32),
+				e: priv.opgp.own.k.e.toString(32),
+				n: priv.opgp.own.k.n.toString(32),
+				p: priv.opgp.own.k.p.toString(32),
+				q: priv.opgp.own.k.q.toString(32),
+				u: priv.opgp.own.k.u.toString(32)
 			};
 			break;
 
@@ -441,16 +441,24 @@ function openpgp_crypto_pair_from_RSA(key, numBits, algo, privKeyUsage, publicKe
 		extractable: true,
 		algorithm: algo,
 		keyUsage: privKeyUsage,
-		opgp_key: key,
-		opgp_numBits: numBits
+		opgp: {
+			own: {
+				k: key
+			},
+			numBits: numBits
+		}
 	};
 	pair.publicKey = {
 		type: 'public',
 		extractable: true,
 		algorithm: algo,
 		keyUsage: publicKeyUsage,
-		opgp_key: key,
-		opgp_numBits: numBits
+		opgp: {
+			own: {
+				k: key
+			},
+			numBits: numBits
+		}
 	};
 	return pair;
 }
@@ -561,8 +569,8 @@ function openpgp_crypto_exportKey_own(format, key) {
 				]),
 				d.build("bitString",
 					d.build("sequence", [
-						d.build("integer", key.opgp_key.n.toByteArray()),
-						d.build("integer", key.opgp_key.ee.toByteArray())
+						d.build("integer", key.opgp.own.k.n.toByteArray()),
+						d.build("integer", key.opgp.own.k.ee.toByteArray())
 					])
 				)
 			]);
