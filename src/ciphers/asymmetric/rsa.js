@@ -90,6 +90,21 @@ function RSA() {
         this.u = null;
     }
 	
+    function finalize_check(key) {
+	var p1 = key.p.subtract(BigInteger.ONE);
+   	var q1 = key.q.subtract(BigInteger.ONE);
+	var phi = p1.multiply(q1);
+	if(phi.gcd(key.ee).compareTo(BigInteger.ONE) == 0) {
+	    key.n = key.p.multiply(key.q);
+	    key.d = key.ee.modInverse(phi);
+	    key.dmp1 = key.d.mod(p1);
+	    key.dmq1 = key.d.mod(q1);
+	    key.u = key.p.modInverse(key.q);
+	    return 1;
+	}
+	return 0;
+    }
+
 	// Generate a new random private key B bits long, using public expt E
     function generate(B,E) {
         var key = new keyObject();
@@ -111,17 +126,8 @@ function RSA() {
                 key.p = key.q;
                 key.q = t;
             }
-            var p1 = key.p.subtract(BigInteger.ONE);
-            var q1 = key.q.subtract(BigInteger.ONE);
-            var phi = p1.multiply(q1);
-            if(phi.gcd(key.ee).compareTo(BigInteger.ONE) == 0) {
-                key.n = key.p.multiply(key.q);
-                key.d = key.ee.modInverse(phi);
-                key.dmp1 = key.d.mod(p1);
-                key.dmq1 = key.d.mod(q1);
-                key.u = key.p.modInverse(key.q);
-                break;
-            }
+	    if(finalize_check(key))
+		break;
         }
         return key;
     }
@@ -132,4 +138,5 @@ function RSA() {
 	this.sign = sign;
 	this.generate = generate;
 	this.keyObject = keyObject;
+	this.finalize_check = finalize_check;
 }

@@ -313,6 +313,19 @@ var Util = function() {
 	    else
 		throw 'Weird array ' + typeof(arr) + ', neither "subarray" nor "slice" defined';
 	};
+
+	this.uint8concat = function (arrs) {
+		var len = 0;
+		for (var i = 0; i < arrs.length; i++)
+			len += arrs[i].length;
+		var res = new Uint8Array(len);
+		len = 0;
+		for (var i = 0; i < arrs.length; i++) {
+			res.set(arrs[i], len);
+			len += arrs[i].length;
+		}
+		return res;
+	};
 };
 
 /**

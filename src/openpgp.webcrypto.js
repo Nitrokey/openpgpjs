@@ -32,7 +32,7 @@ var openpgp_webcrypto_preferred_providers = [
 	'browser',	/* native browser window.crypto.subtle support!	*/
 	'nfwebcrypto',	/* Netflix's NfWebCrypto framework		*/
 	'domcrypt',	/* Mozilla's domCrypt extension			*/
-	'own'		/* OpenPGPjs's JavaScript PKI implementation	*/
+	'owncrypto'	/* OpenPGPjs's JavaScript PKI implementation	*/
 ];
 
 function openpgp_webcrypto_provider_add(name, initfunc)

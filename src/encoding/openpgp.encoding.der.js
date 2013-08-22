@@ -130,5 +130,73 @@ function openpgp_encoding_der()
 		return this;
 	}
 
+	buildfunc = {
+		"null":	function (val) { return new Uint8Array([]); },
+
+		"sequence": function (val) { return util.uint8concat(val); },
+
+		"objectIdentifier": function (val) { return util.uint8concat([val]); },
+
+		"bitString": function (val) {
+			/**
+			 * TODO: Bah, figure the bitstring encoding rules out
+			 * later.
+			 *
+			 * We won't even start thinking about non-zero bits
+			 * left over in the last byte, but we might want to
+			 * think about the leading byte - is it all-ones, is
+			 * it all-zeroes, is it a twister...
+			 *
+			 * For the present, just hope that it's neither a bird
+			 * nor a plane.
+			 */
+			return util.uint8concat([[0], val]);
+		},
+
+		"integer": function (val) {
+			var arr = [];
+
+			/* Already an array? (TODO: handle strings...) */
+			if (val.length > 0)
+				return util.uint8concat([val]);
+
+			if (val == 0)
+				arr.unshift(0);
+			while (val != 0) {
+				arr.unshift(val % 256);
+				val = (val - (val % 256)) / 256;
+			}
+			return util.uint8concat([arr]);
+		}
+	};
+
+	function build(type, value) {
+		if (buildfunc[type] == null) {
+			return null;
+		}
+
+		var v = buildfunc[type](value);
+		var len = v.length;
+		var head, res;
+		if (len < 128) {
+			head = new Uint8Array(2);
+			head[1] = len;
+		} else if (len <= 65535) {
+			head = new Uint8Array(4);
+			head[1] = 128 + 2;
+			head[2] = len / 256;
+			head[3] = len % 256;
+		} else {
+			return null;
+		}
+		head[0] = this.t[type];
+
+		res = new Uint8Array(head.length + v.length);
+		res.set(head);
+		res.set(v, head.length);
+		return res;
+	}
+
 	this.parse = parse;
+	this.build = build;
 }

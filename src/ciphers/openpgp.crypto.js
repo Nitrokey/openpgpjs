@@ -218,36 +218,26 @@ function openpgp_crypto_verifySignature(algo, hash_algo, msg_MPIs, publickey_MPI
  * @param {String} data Data to be signed
  * @return {(String|openpgp_type_mpi)}
  */
-function openpgp_crypto_signData_own(hash_algo, algo, publicMPIs, secretMPIs, data) {
+function openpgp_crypto_signData_own(algo, key, message) {
+	var res = new openpgp_promise();
+	var r;
 	
-	switch(algo) {
-	case 1: // RSA (Encrypt or Sign) [HAC]  
-	case 2: // RSA Encrypt-Only [HAC]
-	case 3: // RSA Sign-Only [HAC]
-		var rsa = new RSA();
-		var d = secretMPIs[0].toBigInteger();
-		var n = publicMPIs[0].toBigInteger();
-		var m = openpgp_encoding_emsa_pkcs1_encode(hash_algo, data,publicMPIs[0].mpiByteLength);
-		util.print_debug("signing using RSA");
-		return rsa.sign(m, d, n).toMPI();
-	case 17: // DSA (Digital Signature Algorithm) [FIPS186] [HAC]
-		var dsa = new DSA();
-		util.print_debug("DSA Sign: q size in Bytes:"+publicMPIs[1].getByteLength());
-		var p = publicMPIs[0].toBigInteger();
-		var q = publicMPIs[1].toBigInteger();
-		var g = publicMPIs[2].toBigInteger();
-		var y = publicMPIs[3].toBigInteger();
-		var x = secretMPIs[0].toBigInteger();
-		var m = data;
-		var result = dsa.sign(hash_algo,m, g, p, q, x);
-		util.print_debug("signing using DSA\n result:"+util.hexstrdump(result[0])+"|"+util.hexstrdump(result[1]));
-		return result[0]+result[1];
-	case 16: // Elgamal (Encrypt-Only) [ELGAMAL] [HAC]
-			util.print_debug("signing with Elgamal is not defined in the OpenPGP standard.");
-			return null;
+	switch(algo.name) {
+	case 'RSASSA-PKCS1-v1_5':
+		m = openpgp_encoding_emsa_pkcs1_encode(8, util.bin2str(message), key.opgp_numBits / 8);
+		rsa = new RSA();
+		ss = rsa.sign(m, key.opgp_key.d, key.opgp_key.n);
+		sb = ss.toByteArray();
+		r = util.uint8concat([sb]);
+		break;
+	
 	default:
-		return null;
-	}	
+		res._onerror('openpgp_crypto_signData_own(): unsupported algorithm ' + algo.name);
+		return res;
+	}
+
+	res._oncomplete(r);
+	return res;
 }
 
 /**
@@ -286,7 +276,7 @@ function openpgp_crypto_signData(hash_algo, algo, publicMPIs, privateKey, data) 
 		return res;
 	}	
 
-	var sign = openpgp_webcrypto.subtle.sign(algorithm, privateKey, util.str2Uint8Array(data));
+	var sign = openpgp_webcrypto_subtle.sign(algorithm, privateKey, util.str2Uint8Array(data));
 	sign.oncomplete = function (e) {
 		var r;
 		if (!toMPI) {
@@ -484,6 +474,123 @@ function openpgp_keypair_raw()
 	this.publicKey = null;
 }
 
+function openpgp_crypto_stashKey_own(pair, numBits){
+	/**
+	 * OK, so this kind of "hopes" that no one imports keys from
+	 * a different origin into ours.  Let's keep hoping so.
+	 */
+	var priv = pair.privateKey, pub = pair.publicKey;
+	var aid, val;
+	switch (priv.algorithm.name) {
+		case 'RSASSA-PKCS1-v1_5':
+			aid = priv.opgp_key.n.toString(16).substring(0, 16);
+			val = {
+				type: 'RSA',
+				numBits: numBits,
+				d: priv.opgp_key.d.toString(32),
+				e: priv.opgp_key.e.toString(32),
+				n: priv.opgp_key.n.toString(32),
+				p: priv.opgp_key.p.toString(32),
+				q: priv.opgp_key.q.toString(32),
+				u: priv.opgp_key.u.toString(32)
+			};
+			break;
+
+		default:
+			return 'openpgp_crypto_stashKey_own: unsupported algorithm ' + priv.algorithm.name;
+	}
+	val = JSON.stringify(val);
+
+	var aname = priv.algorithm.name.replace(/[^A-Za-z0-9_]/g, '');
+
+	var kname = "openpgp.own.key.a" + aname + ".s" + numBits + ".k" + aid;
+	var cid = window.localStorage[kname + ".last"];
+	if (cid == null)
+		id = 0;
+	else
+		id = parseInt(cid, 10) + 1;
+	window.localStorage[kname + ".last"] = id.toString();
+	window.localStorage[kname + "." + id] = val;
+	window.localStorage["openpgp.own.key.last.a" + aname + ".s" + numBits] = kname;
+
+	priv.name = kname;
+	priv.id = id;
+	pub.name = kname;
+	pub.id = id;
+	return null;
+}
+
+function openpgp_crypto_pair_from_RSA(key, numBits, algo, privKeyUsage, publicKeyUsage) {
+	return {
+		privateKey: {
+			type: 'private',
+			extractable: true,
+			algorithm: algo,
+			keyUsage: privKeyUsage,
+			opgp_key: key,
+			opgp_numBits: numBits
+		},
+		publicKey: {
+			type: 'public',
+			extractable: true,
+			algorithm: algo,
+			keyUsage: publicKeyUsage,
+			opgp_key: key,
+			opgp_numBits: numBits
+		}
+	};
+}
+
+function openpgp_crypto_digKey_own(algo, numBits) {
+	var aname = algo.name.replace(/[^A-Za-z0-9_]/g, '');
+	var kname = window.localStorage["openpgp.own.key.last.a" + aname + ".s" + numBits];
+	if (kname == null)
+		return null;
+	var id = window.localStorage[kname + ".last"];
+	if (id == null) {
+		console.error("OpenPGP.js error: no stashed " + kname + ".last member");
+		return null;
+	}
+	var val = window.localStorage[kname + "." + id];
+	if (val == null) {
+		console.error("OpenPGP.js error: no stashed " + kname + "." + id + " member");
+		return null;
+	}
+	var res = JSON.parse(val);
+	if (res == null) {
+		console.error("OpenPGP.js error: invalid JSON data for stashed " + kname + "." + id);
+		return null;
+	}
+
+	var pair;
+	switch (algo.name) {
+		case 'RSASSA-PKCS1-v1_5':
+			if (res.type != "RSA") {
+				console.error("OpenPGP.js error: wrong type for stashed " + kname + "." + id + ": expected RSA, got " + res.type);
+				return null;
+			}
+
+			rsa = new RSA();
+			key = new rsa.keyObject();
+			key.ee = new BigInteger(res.e, 32);
+			key.e = parseInt(key.e.toString(16), 16);
+			key.p = new BigInteger(res.p, 32);
+			key.q = new BigInteger(res.q, 32);
+			if (!rsa.finalize_check(key)) {
+				console.error("OpenPGP.js error: finalize_check() failed for stashed " + kname + "." + id);
+				return null;
+			}
+
+			pair = openpgp_crypto_pair_from_RSA(key, numBits, algo, ["sign"], ["verify"]);
+			break;
+
+		default:
+			console.error("OpenPGP.js error: don't know how to dig up a " + algo.name + " key from the stash");
+			return null;
+	}
+	return pair;
+}
+
 /**
  * Calls the necessary crypto functions to generate a keypair. 
  * Called directly by openpgp.js
@@ -491,20 +598,30 @@ function openpgp_keypair_raw()
  * @param {Integer} numBits Number of bits to make the key to be generated
  * @return {openpgp_keypair}
  */
-function openpgp_crypto_generateKeyPair_own(keyType, numBits, passphrase, s2kHash, symmetricEncryptionAlgorithm){
-	var privKeyPacket;
-	var publicKeyPacket;
-	switch(keyType){
-	case 1:
+function openpgp_crypto_generateKeyPair_own(algo, numBits, passphrase, s2kHash, symmetricEncryptionAlgorithm){
+	var res = new openpgp_promise();
+	var pair;
+
+	switch(algo.name){
+	case 'RSASSA-PKCS1-v1_5':
 	    var rsa = new RSA();
 	    var key = rsa.generate(numBits,"10001");
-	    privKeyPacket = new openpgp_packet_keymaterial().write_private_key(keyType, key, passphrase, s2kHash, symmetricEncryptionAlgorithm, timePacket);
-	    publicKeyPacket =  new openpgp_packet_keymaterial().write_public_key(keyType, key, timePacket);
+	    pair = openpgp_crypto_pair_from_RSA(key, numBits, algo, ['sign'], ['verify']);
 	    break;
+
 	default:
-		util.print_error("Unknown keytype "+keyType)
+	    res._onerror("Unknown algorithm " + algo.name);
+	    return res;
 	}
-	return {privateKey: privKeyPacket, publicKey: publicKeyPacket};
+
+	err = openpgp_crypto_stashKey_own(pair, numBits);
+	if (err != null) {
+		res._onerror(err);
+		return res;
+	}
+
+	res._oncomplete(pair);
+	return res;
 }
 
 function openpgp_crypto_generateKeyPair(keyType, numBits, symmetricEncryptionAlgorithm)
@@ -561,7 +678,7 @@ function openpgp_crypto_generateKeyPair(keyType, numBits, symmetricEncryptionAlg
 function openpgp_crypto_exportKey(format, key) {
 	var res = new openpgp_promise();
 
-	openpgp_webcrypto.subtle.exportKey(format, key).then(
+	openpgp_webcrypto_subtle.exportKey(format, key).then(
 		function (e) {
 			try {
 				res._oncomplete(e.target.result);
@@ -573,5 +690,44 @@ function openpgp_crypto_exportKey(format, key) {
 		function (e) {
 			res._onerror(e.target.result);
 		});
+	return res;
+}
+
+function openpgp_crypto_exportKey_own(format, key) {
+	var res = new openpgp_promise();
+	var arr;
+
+	if (!key.extractable) {
+		res._onerror('Key not extractable');
+		return res;
+	}
+	if (key.type != 'public') {
+		res._onerror('For the present, only public keys may be exported');
+		return res;
+	}
+
+	switch (key.algorithm.name) {
+		case 'RSASSA-PKCS1-v1_5':
+			var d = new openpgp_encoding_der();
+			arr = d.build("sequence", [
+				d.build("sequence", [
+					d.build("objectIdentifier", [42, 134, 72, 134, 247, 13, 1, 1, 1]),
+					d.build("null")
+				]),
+				d.build("bitString",
+					d.build("sequence", [
+						d.build("integer", key.opgp_key.n.toByteArray()),
+						d.build("integer", key.opgp_key.ee.toByteArray())
+					])
+				)
+			]);
+			break;
+
+		default:
+			res._onerror('openpgp_crypto_exportKey_own(): unsupported algorithm ' + key.algorithm.name);
+			return res;
+	}
+
+	res._oncomplete(arr);
 	return res;
 }
