@@ -1,0 +1,53 @@
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>JS sign test 1</title>
+</head>
+<body>
+  <h1>JS sign test 1</h1>
+
+  <script src="./jquery.min.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/ciphers/asymmetric/jsbn.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/ciphers/asymmetric/jsbn2.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/ciphers/asymmetric/rsa.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/ciphers/hash/sha.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/ciphers/openpgp.crypto.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/config/openpgp.config.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/encoding/base64.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/encoding/openpgp.encoding.asciiarmor.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/encoding/openpgp.encoding.der.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/encoding/openpgp.encoding.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/packet/openpgp.packet.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/packet/openpgp.packet.keymaterial.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/packet/openpgp.packet.signature.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/packet/openpgp.packet.userid.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/type/openpgp.type.mpi.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/util/util.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/openpgp.keyring.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/openpgp.promise.js" type="text/javascript" charset="utf-8"></script>
+
+  <script src="./src/openpgp.webcrypto.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/ciphers/openpgp.domcrypto.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/ciphers/openpgp.nfcrypto.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/ciphers/openpgp.owncrypto.js" type="text/javascript" charset="utf-8"></script>
+
+  <script src="./src/openpgp.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./signtest.js" type="text/javascript" charset="utf-8"></script>
+
+  <form action="signtest1genkey" method="POST" name="genkeyform" id="genkeyform" onsubmit="return dogenkey()">
+    <p>Click this button:
+      <input type="submit" id="genkey" value="Generate key" />
+      first&#8230;</p>
+  <textarea rows="25" cols="100" name="genkeypub" id="genkeypub">&nbsp;</textarea>
+  </form>
+
+  <form action="signtest1sign" method="POST" name="signform" id="signform" onsubmit="return dosign()">
+    <p>Now enter some text here:</p>
+    <textarea rows="5" cols="100" name="signplain" id="signplain">This is a test. This is only a test.</textarea>
+    <p>&#8230;and click this button:
+      <input type="submit" id="sign" value="Sign" />
+      </p>
+    <textarea rows="25" cols="100" name="signsigned", id="signsigned">&nbsp;</textarea>
+  </form>
+</body>
+</html>
