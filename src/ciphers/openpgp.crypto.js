@@ -520,14 +520,15 @@ function openpgp_crypto_digKey_own(algo, numBits) {
  * @param {Integer} numBits Number of bits to make the key to be generated
  * @return {openpgp_keypair}
  */
-function openpgp_crypto_generateKeyPair_own(algo, numBits, passphrase, s2kHash, symmetricEncryptionAlgorithm){
+function openpgp_crypto_generateKeyPair_own(algo, passphrase, s2kHash, symmetricEncryptionAlgorithm){
 	var res = new openpgp_promise();
-	var pair;
+	var numBits, pair;
 
 	switch(algo.name){
 	case 'RSASSA-PKCS1-v1_5':
+	    numBits = algo.params.modulusLength;
 	    var rsa = new RSA();
-	    var key = rsa.generate(numBits,"10001");
+	    var key = rsa.generate(algo.params.modulusLength, util.hexidump(algo.params.publicExponent));
 	    pair = openpgp_crypto_pair_from_RSA(key, numBits, algo, ['sign'], ['verify']);
 	    break;
 

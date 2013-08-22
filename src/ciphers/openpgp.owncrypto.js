@@ -39,7 +39,6 @@ function openpgp_owncrypto_init(window)
 
 		switch (algo.name) {
 		case 'RSASSA-PKCS1-v1_5':
-		      numBits = 512;
 		      break;
 
 		default:
@@ -47,7 +46,7 @@ function openpgp_owncrypto_init(window)
 		      return res;
 		}
 
-		openpgp_crypto_generateKeyPair_own(algo, numBits, ''/*passphrase*/, 0/*s2kHash*/, 0/*symmetricEncryptionAlgorithm*/).then(
+		openpgp_crypto_generateKeyPair_own(algo, ''/*passphrase*/, 0/*s2kHash*/, 0/*symmetricEncryptionAlgorithm*/).then(
 			function (e) {
 				res._oncomplete({ target: { result: e } });
 			},
