@@ -89,38 +89,6 @@ function openpgp_browser_crypto_init(window)
 
 openpgp_webcrypto_provider_add('browser', openpgp_browser_crypto_init);
 
-/**
- * @typedef {Object} openpgp_keypair
- * @property {WebCrypto.Key} privateKey 
- * @property {WebCrypto.Key} publicKey
- * @property {String} publicKeyArmored
- */
-
-function openpgp_keypair()
-{
-	this.privateKey = null;
-	this.publicKey = null;
-	this.publicKeyArmored = null;
-}
-
-/**
- * @typedef {Object} openpgp_keypair_raw
- * @property {Integer} numBits
- * @property {Integer} symmetricEncryptionAlgorithm
- * @property {String} timePacket
- * @property {WebCrypto.Key} privateKey
- * @property {WebCrypto.Key} publicKey
- */
-
-function openpgp_keypair_raw()
-{
-	this.numBits = null;
-	this.symmetricEncryptionAlgorithm = null;
-	this.timePacket = null;
-	this.privateKey = null;
-	this.publicKey = null;
-}
-
 function openpgp_crypto_exportKey(format, key) {
 	var res = new openpgp_promise();
 
