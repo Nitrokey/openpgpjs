@@ -55,3 +55,13 @@ function openpgp_keypair_raw()
 	this.privateKey = null;
 	this.publicKey = null;
 }
+
+function openpgp_webcrypto_provider()
+{
+	this.name = null;
+	this.crypto = null;
+	this.subtle = null;
+
+	this.initFunc = null;
+	this.initAttempted = false;
+}

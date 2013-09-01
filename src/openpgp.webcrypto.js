@@ -25,7 +25,6 @@
  */
 
 var openpgp_webcrypto = null;
-var openpgp_webcrypto_subtle = null;
 
 var openpgp_webcrypto_providers = {};
 var openpgp_webcrypto_preferred_providers = [
@@ -37,7 +36,11 @@ var openpgp_webcrypto_preferred_providers = [
 
 function openpgp_webcrypto_provider_add(name, initfunc)
 {
-	openpgp_webcrypto_providers[name] = initfunc;
+	prov = new openpgp_webcrypto_provider();
+	prov.name = name;
+	prov.initFunc = initfunc;
+
+	openpgp_webcrypto_providers[name] = prov;
 }
 
 function openpgp_webcrypto_init(window, preferred)
@@ -54,19 +57,28 @@ function openpgp_webcrypto_init(window, preferred)
 	var res = null;
 	for (var i = 0; i < preferred.length; i++) {
 		var name = preferred[i];
-		var initfunc = openpgp_webcrypto_providers[name];
+		var prov = openpgp_webcrypto_providers[name];
 
-		if (initfunc == null)
+		if (prov == null) {
 			continue;
+		} else if (prov.crypto != null) {
+			res = prov;
+			break;
+		} else if (prov.initAttempted) {
+			continue;
+		}
 
+		prov.initAttempted = true;
 		try {
-			var r = initfunc(window);
+			var r = prov.initFunc(window);
 
 			if (r == null || r.crypto == null || r.subtle == null)
 				continue;
 
 			/* Found it! */
-			res = r;
+			prov.crypto = r.crypto;
+			prov.subtle = r.subtle;
+			res = prov;
 			break;
 		} catch (err) {
 		}
@@ -75,8 +87,7 @@ function openpgp_webcrypto_init(window, preferred)
 	if (res == null)
 		throw 'openpgp_webcrypto_init(): could not find a suitable WebCrypto provider';
 
-	openpgp_webcrypto = res.crypto;
-	openpgp_webcrypto_subtle = res.subtle;
+	openpgp_webcrypto = res;
 	return true;
 }
 
@@ -119,12 +130,7 @@ function openpgp_webcrypto_tag(key, numBits)
 		key.opgp = {};
 
 	key.opgp.numBits = numBits;
-
-	key.opgp.provider = {
-		/* TODO: name */
-		crypto: openpgp_webcrypto,
-		subtle: openpgp_webcrypto_subtle
-	};
+	key.opgp.provider = openpgp_webcrypto;
 }
 
 function openpgp_crypto_generateKeyPair(keyType, numBits, symmetricEncryptionAlgorithm)
@@ -203,7 +209,7 @@ function openpgp_crypto_generateKeyPair(keyType, numBits, symmetricEncryptionAlg
 			openpgp_webcrypto_tag(signPair.privateKey, numBits);
 
 			/* OK, just for kicks, generate an encryption subkey. */
-			openpgp_webcrypto_subtle.generateKey(algoEnc, false, ["encrypt"]).then(enc_generated, pass_error);
+			openpgp_webcrypto.subtle.generateKey(algoEnc, false, ["encrypt"]).then(enc_generated, pass_error);
 			break;
 		default:
 			res._onerror("We shouldn't have reached generateKeyPair.sign_generated() with an unknown key type " + keyType);
@@ -211,7 +217,7 @@ function openpgp_crypto_generateKeyPair(keyType, numBits, symmetricEncryptionAlg
 		}
 	}
 
-	openpgp_webcrypto_subtle.generateKey(algoSign, false, ["sign"]).then(sign_generated, pass_error);
+	openpgp_webcrypto.subtle.generateKey(algoSign, false, ["sign"]).then(sign_generated, pass_error);
 	return res;
 }
 
