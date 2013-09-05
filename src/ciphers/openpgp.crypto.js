@@ -578,8 +578,9 @@ function openpgp_crypto_exportKey_own(format, key) {
 		res._onerror('Key not extractable');
 		return res;
 	}
-	if (key.type != 'public') {
-		res._onerror('For the present, only public keys may be exported');
+	if (!(key.type == 'public' && format == 'spki') &&
+	    !(key.type == 'private' && format == 'pkcs8')) {
+		res._onerror('Invalid format/keytype combination, only spki/public and pkcs8/private supported so far');
 		return res;
 	}
 
@@ -587,18 +588,41 @@ function openpgp_crypto_exportKey_own(format, key) {
 		case 'RSASSA-PKCS1-v1_5':
 		case 'RSAES-PKCS1-v1_5':
 			var d = new openpgp_encoding_der();
-			arr = d.build("sequence", [
-				d.build("sequence", [
-					d.build("objectIdentifier", [42, 134, 72, 134, 247, 13, 1, 1, 1]),
-					d.build("null")
-				]),
-				d.build("bitString",
+			if (format == 'spki') {
+				arr = d.build("sequence", [
 					d.build("sequence", [
-						d.build("integer", key.opgp.own.k.n.toByteArray()),
-						d.build("integer", key.opgp.own.k.ee.toByteArray())
-					])
-				)
-			]);
+						d.build("objectIdentifier", [42, 134, 72, 134, 247, 13, 1, 1, 1]),
+						d.build("null")
+					]),
+					d.build("bitString",
+						d.build("sequence", [
+							d.build("integer", key.opgp.own.k.n.toByteArray()),
+							d.build("integer", key.opgp.own.k.ee.toByteArray())
+						])
+					)
+				]);
+			} else if (format == "pkcs8") {
+				arr = d.build("sequence", [
+					d.build("integer", [0]),
+					d.build("sequence", [
+						d.build("objectIdentifier", [42, 134, 72, 134, 247, 13, 1, 1, 1]),
+						d.build("null")
+					]),
+					d.build("octetString",
+						d.build("sequence", [
+							d.build("integer", [0]),
+							d.build("integer", key.opgp.own.k.n.toByteArray()),
+							d.build("integer", key.opgp.own.k.ee.toByteArray()),
+							d.build("integer", key.opgp.own.k.d.toByteArray()),
+							d.build("integer", key.opgp.own.k.p.toByteArray()),
+							d.build("integer", key.opgp.own.k.q.toByteArray()),
+							d.build("integer", key.opgp.own.k.dmp1.toByteArray()),
+							d.build("integer", key.opgp.own.k.dmq1.toByteArray()),
+							d.build("integer", key.opgp.own.k.u.toByteArray())
+						])
+					)
+				]);
+			}
 			break;
 
 		default:

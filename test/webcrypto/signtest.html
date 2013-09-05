@@ -11,6 +11,8 @@
   <script src="./src/ciphers/asymmetric/jsbn2.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/ciphers/asymmetric/rsa.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/ciphers/hash/sha.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/ciphers/symmetric/cast5.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/ciphers/openpgp.cfb.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/ciphers/openpgp.crypto.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/config/openpgp.config.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/encoding/base64.js" type="text/javascript" charset="utf-8"></script>
@@ -22,6 +24,7 @@
   <script src="./src/packet/openpgp.packet.signature.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/packet/openpgp.packet.userid.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/type/openpgp.type.mpi.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/type/openpgp.type.s2k.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/util/util.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/openpgp.keyring.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/openpgp.promise.js" type="text/javascript" charset="utf-8"></script>
@@ -39,6 +42,7 @@
     <p>Click this button:
       <input type="submit" id="genkey" value="Generate key" />
       first&#8230;</p>
+  <textarea rows="25" cols="100" name="genkeypriv" id="genkeypriv">&nbsp;</textarea>
   <textarea rows="25" cols="100" name="genkeypub" id="genkeypub">&nbsp;</textarea>
   </form>
 

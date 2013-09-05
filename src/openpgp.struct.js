@@ -33,9 +33,22 @@
 
 function openpgp_keypair()
 {
+	function fromRawPair(raw) {
+		this.symmetricEncryptionAlgorithm = raw.symmetricEncryptionAlgorithm;
+		this.timePacket = raw.timePacket;
+		this.privateKey = raw.privateKey;
+		this.publicKey = raw.publicKey;
+		this.publicKeyArmored = null;
+	}
+
+	this.symmetricEncryptionAlgorithm = null;
+	this.timePacket = null;
 	this.privateKey = null;
 	this.publicKey = null;
 	this.publicKeyArmored = null;
+	this.privateKeyArmored = null;
+
+	this.fromRawPair = fromRawPair;
 }
 
 /**

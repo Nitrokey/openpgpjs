@@ -17,6 +17,10 @@ function dogenkey()
 			function (pair) {
 				generatedKeypair = pair;
 				$('textarea#genkeypub').val(pair.publicKeyArmored);
+				if (pair.privateKeyArmored != null)
+					$('textarea#genkeypriv').val(pair.privateKeyArmored);
+				else
+					$('textarea#genkeypriv').val('Private key not extractable');
 			},
 			function (e) {
 				window.alert("dogenkey: openpgp.generate_key_pair() failed: " + e);

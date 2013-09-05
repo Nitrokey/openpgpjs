@@ -436,7 +436,7 @@ function _openpgp () {
 	/**
 	 * Extract a RSA keypair from a SPKI DER sequence.
 	 */
-	function openpgp_der_to_rsa_key(der)
+	function openpgp_spki_to_rsa(der)
 	{
 		var wrap = new openpgp_encoding_der().parse(der);
 		if (wrap.bgrosssize != der.length)
@@ -455,6 +455,47 @@ function _openpgp () {
 		var res = {
 			key: wrap.value[1].value.value[0].bcontent,
 			exp: wrap.value[1].value.value[1].bcontent
+		};
+		return res;
+	}
+
+	/**
+	 * Extract a RSA keypair from a PKCS#8 DER sequence.
+	 */
+	function openpgp_pkcs8_to_rsa(der)
+	{
+		var wrap = new openpgp_encoding_der().parse(der);
+		if (wrap.bgrosssize != der.length)
+			throw "The DER object did not encompass the full array, expected " + der.length + " bytes, only got " + wrap.bgrosssize;
+
+		if (wrap.type != wrap.t["sequence"] ||
+		    wrap.length < 3 ||
+		    wrap.value[0].type != wrap.t["integer"] ||
+		    wrap.value[0].bcontent[0] != 0 ||
+		    wrap.value[1].type != wrap.t["sequence"] ||
+		    wrap.value[1].value.length < 1 ||
+		    wrap.value[1].value[0].type != wrap.t["objectIdentifier"] ||
+		    wrap.value[2].type != wrap.t["octetString"])
+			throw "Unexpected formatting of the PKCS#8 DER key";
+		var wrap2 = new openpgp_encoding_der().parse(wrap.value[2].bcontent);
+		if (wrap2.type != wrap2.t["sequence"] ||
+		    wrap2.length < 9 ||
+		    wrap2.value[0].type != wrap.t["integer"] ||
+		    wrap2.value[0].bcontent[0] != 0)
+			throw "Unexpected formatting of the BER RSA key within the PKCS#8 DER key";
+		for (var i = 1; i < 9; i++)
+			if (wrap2.value[i].type != wrap2.t["integer"])
+				throw "Unexpected formatting of integer " + i + " within the BER RSA key within the PKCS#8 DER key";
+
+		var res = {
+			n:	wrap2.value[1].bcontent,
+			e:	wrap2.value[2].bcontent,
+			d:	wrap2.value[3].bcontent,
+			p:	wrap2.value[4].bcontent,
+			q:	wrap2.value[5].bcontent,
+			dmp1:	wrap2.value[6].bcontent,
+			dmq1:	wrap2.value[7].bcontent,
+			u:	wrap2.value[8].bcontent
 		};
 		return res;
 	}
@@ -480,32 +521,49 @@ function _openpgp () {
 		
 		var keyPair = null, privKey = null, pubKey = null;
 		var publicKeyString = null, publicKeyStringFull = null, publicKeyMat = null;
+		var privateKeyString = null, privateKeyStringFull = null;
+		var result = new openpgp_keypair();
 
 		pass_error = function (e) {
 			res._onerror(e);
 		}
 
 		sign_oncomplete = function (sig) {
-			var publicArmored = openpgp_encoding_armor(4, publicKeyStringFull + userIdString + sig.openpgp );
-			var result = new openpgp_keypair();
-			result.privateKey = keyPair.privateKey;
-			result.publicKey = keyPair.publicKey;
-			result.publicKeyArmored = publicArmored;
-			res._oncomplete(result);
+			keyPair.publicKeyArmored = openpgp_encoding_armor(4, publicKeyStringFull + userIdString + sig.openpgp );
+			if (privKey.extractable)
+				keyPair.privateKeyArmored = openpgp_encoding_armor(5, privateKeyStringFull + userIdString + sig.openpgp );
+			else
+				keyPair.privateKeyArmored = null;
+
+			res._oncomplete(keyPair);
 		}
 
-		exp_oncomplete = function (exp) {
+		exp_priv_oncomplete = function (exp) {
 			try {
-				var rsa = openpgp_der_to_rsa_key(exp);
-				var keyStr = util.hexidump(rsa.key), expStr = util.hexidump(rsa.exp);
-				var rsaObj = new RSA();
-				var rsaKey = new rsaObj.keyObject();
-				rsaKey.n = new BigInteger(keyStr, 16);
-				rsaKey.ee = new BigInteger(expStr, 16);
-				var pk = new openpgp_packet_keymaterial().write_public_key(keyType, rsaKey, keyPair.timePacket);
-				publicKeyString = pk.body;
-				publicKeyStringFull = pk.string;
-				publicKeyMat = new openpgp_packet_keymaterial().read_pub_key(publicKeyString, 0, publicKeyString.length);
+				if (privKey.extractable) {
+					if (exp == null) {
+						res._onerror('Could not export the private key');
+						return res;
+					}
+					var rsa = openpgp_pkcs8_to_rsa(exp);
+					var rsaObj = new RSA();
+					var rsaKey = new rsaObj.keyObject();
+					for (var k in rsa) {
+						if (!rsa.hasOwnProperty(k))
+							continue;
+						var str = util.hexidump(rsa[k]);
+						var mpi = new BigInteger(str, 16);
+						if (k != "e")
+							rsaKey[k] = mpi;
+						else
+							rsaKey["ee"] = mpi;
+					}
+
+					var pk = new openpgp_packet_keymaterial().write_private_key(keyType, rsaKey, 'just', 8, 3, keyPair.timePacket);
+					privateKeyString = pk.body;
+					privateKeyStringFull = pk.string;
+					privateKeyMat = new openpgp_packet_keymaterial().read_priv_key(privateKeyString, 0, privateKeyString.length);
+				}
 
 				userId = util.encode_utf8(userId); // needs same encoding as in userIdString
 				var hashData = String.fromCharCode(0x99)+ String.fromCharCode(((publicKeyString.length) >> 8) & 0xFF) 
@@ -515,13 +573,40 @@ function _openpgp () {
 				var signature = new openpgp_packet_signature();
 				signature.write_message_signature(16,hashData, privKey, publicKeyMat).then(sign_oncomplete, pass_error);
 			} catch (err) {
-				res._onerror("openpgp.generate_key_pair.exp_oncomplete: exception caught: " + err);
+				console.log(err.stack);
+				res._onerror("openpgp.generate_key_pair.exp_priv_oncomplete: exception caught: " + err);
+			}
+		}
+
+		exp_pub_oncomplete = function (exp) {
+			try {
+				var rsa = openpgp_spki_to_rsa(exp);
+				var keyStr = util.hexidump(rsa.key), expStr = util.hexidump(rsa.exp);
+				var rsaObj = new RSA();
+				var rsaKey = new rsaObj.keyObject();
+				rsaKey.n = new BigInteger(keyStr, 16);
+				rsaKey.ee = new BigInteger(expStr, 16);
+				var pk = new openpgp_packet_keymaterial().write_public_key(keyType, rsaKey, keyPair.timePacket);
+				publicKeyString = pk.body;
+				publicKeyStringFull = pk.string;
+				publicKeyMat = new openpgp_packet_keymaterial().read_pub_key(publicKeyString, 0, publicKeyString.length);
+				keyPair.id = util.hexstrdump(publicKeyMat.getFingerprint());
+				openpgp_webcrypto_pair2webcrypto_store(keyPair);
+
+				if (privKey.extractable)
+					openpgp_crypto_exportKey("pkcs8", privKey).then(exp_priv_oncomplete, pass_error);
+				else
+					exp_priv_oncomplete(null);
+			} catch (err) {
+				res._onerror("openpgp.generate_key_pair.exp_pub_oncomplete: exception caught: " + err);
+				console.log(err.stack);
 			}
 		}
 
 		gen_oncomplete = function (pair) {
 			try {
-				keyPair = pair;
+				keyPair = new openpgp_keypair();
+				keyPair.fromRawPair(pair);
 				privKey = pair.privateKey;
 				pubKey = pair.publicKey;
 
@@ -529,7 +614,7 @@ function _openpgp () {
 					res._onerror("openpgp.generate_key_pair(): WebCrypto generated a non-exportable public key " + pubKey);
 					return;
 				}
-				openpgp_crypto_exportKey("spki", pubKey).then(exp_oncomplete, pass_error);
+				openpgp_crypto_exportKey("spki", pubKey).then(exp_pub_oncomplete, pass_error);
 			} catch (err) {
 				// FIXME: we don't really need this level of detail
 				res._onerror("openpgp.generate_keypair.gen_oncomplete: exception caught: " + err);

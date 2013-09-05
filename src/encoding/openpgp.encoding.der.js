@@ -153,6 +153,10 @@ function openpgp_encoding_der()
 			return util.uint8concat([[0], val]);
 		},
 
+		"octetString": function (val) {
+			return util.uint8concat([val]);
+		},
+
 		"integer": function (val) {
 			var arr = [];
 
