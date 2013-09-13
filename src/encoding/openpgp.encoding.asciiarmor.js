@@ -172,14 +172,22 @@ function openpgp_encoding_armor(messagetype, data, partindex, parttotal) {
 		result += "-----BEGIN PGP MESSAGE, PART "+partindex+"/"+parttotal+"-----\r\n";
 		result += openpgp_encoding_armor_addheader();
 		result += openpgp_encoding_base64_encode(data);
-		result += "\r\n="+getCheckSum(data)+"\r\n";
+		if (result[result.length - 1] != '\n')
+		    result += '\r\n';
+		result += "="+getCheckSum(data);
+		if (result[result.length - 1] != '\n')
+		    result += '\r\n';
 		result += "-----END PGP MESSAGE, PART "+partindex+"/"+parttotal+"-----\r\n";
 		break;
 	case 1:
 		result += "-----BEGIN PGP MESSAGE, PART "+partindex+"-----\r\n";
 		result += openpgp_encoding_armor_addheader();
 		result += openpgp_encoding_base64_encode(data);
-		result += "\r\n="+getCheckSum(data)+"\r\n";
+		if (result[result.length - 1] != '\n')
+		    result += '\r\n';
+		result += "="+getCheckSum(data);
+		if (result[result.length - 1] != '\n')
+		    result += '\r\n';
 		result += "-----END PGP MESSAGE, PART "+partindex+"-----\r\n";
 		break;
 	case 2:
@@ -188,28 +196,44 @@ function openpgp_encoding_armor(messagetype, data, partindex, parttotal) {
 		result += "\r\n-----BEGIN PGP SIGNATURE-----\r\n";
 		result += openpgp_encoding_armor_addheader();
 		result += openpgp_encoding_base64_encode(data.openpgp);
-		result += "\r\n="+getCheckSum(data.openpgp)+"\r\n";
+		if (result[result.length - 1] != '\n')
+		    result += '\r\n';
+		result += "="+getCheckSum(data.openpgp);
+		if (result[result.length - 1] != '\n')
+		    result += '\r\n';
 		result += "-----END PGP SIGNATURE-----\r\n";
 		break;
 	case 3:
 		result += "-----BEGIN PGP MESSAGE-----\r\n";
 		result += openpgp_encoding_armor_addheader();
 		result += openpgp_encoding_base64_encode(data);
-		result += "\r\n="+getCheckSum(data)+"\r\n";
+		if (result[result.length - 1] != '\n')
+		    result += '\r\n';
+		result += "="+getCheckSum(data);
+		if (result[result.length - 1] != '\n')
+		    result += '\r\n';
 		result += "-----END PGP MESSAGE-----\r\n";
 		break;
 	case 4:
 		result += "-----BEGIN PGP PUBLIC KEY BLOCK-----\r\n";
 		result += openpgp_encoding_armor_addheader();
 		result += openpgp_encoding_base64_encode(data);
-		result += "\r\n="+getCheckSum(data)+"\r\n";
+		if (result[result.length - 1] != '\n')
+		    result += '\r\n';
+		result += "="+getCheckSum(data);
+		if (result[result.length - 1] != '\n')
+		    result += '\r\n';
 		result += "-----END PGP PUBLIC KEY BLOCK-----\r\n\r\n";
 		break;
 	case 5:
 		result += "-----BEGIN PGP PRIVATE KEY BLOCK-----\r\n";
 		result += openpgp_encoding_armor_addheader();
 		result += openpgp_encoding_base64_encode(data);
-		result += "\r\n="+getCheckSum(data)+"\r\n";
+		if (result[result.length - 1] != '\n')
+		    result += '\r\n';
+		result += "="+getCheckSum(data);
+		if (result[result.length - 1] != '\n')
+		    result += '\r\n';
 		result += "-----END PGP PRIVATE KEY BLOCK-----\r\n";
 		break;
 	}
