@@ -507,6 +507,7 @@ function _openpgp () {
 				publicKeyStringFull = pk.string;
 				publicKeyMat = new openpgp_packet_keymaterial().read_pub_key(publicKeyString, 0, publicKeyString.length);
 
+				userId = util.encode_utf8(userId); // needs same encoding as in userIdString
 				var hashData = String.fromCharCode(0x99)+ String.fromCharCode(((publicKeyString.length) >> 8) & 0xFF) 
 					+ String.fromCharCode((publicKeyString.length) & 0xFF) +publicKeyString+String.fromCharCode(0xB4) +
 					String.fromCharCode((userId.length) >> 24) +String.fromCharCode(((userId.length) >> 16) & 0xFF) 
