@@ -47,7 +47,7 @@ function openpgp_owncrypto_init(window)
 		      return res;
 		}
 
-		openpgp_crypto_generateKeyPair_own(algo, ''/*passphrase*/, 0/*s2kHash*/, 0/*symmetricEncryptionAlgorithm*/).then(
+		openpgp_crypto_generateKeyPair_own(algo, flag, ''/*passphrase*/, 0/*s2kHash*/, 0/*symmetricEncryptionAlgorithm*/).then(
 			function (e) {
 				res._oncomplete({ target: { result: e } });
 			},

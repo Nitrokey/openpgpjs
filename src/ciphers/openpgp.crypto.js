@@ -401,6 +401,8 @@ function openpgp_crypto_stashKey_own(pair, numBits){
 			val = {
 				type: 'RSA',
 				numBits: numBits,
+				privExtractable: priv.extractable,
+				pubExtractable: pub.extractable,
 				d: priv.opgp.own.k.d.toString(32),
 				e: priv.opgp.own.k.e.toString(32),
 				n: priv.opgp.own.k.n.toString(32),
@@ -517,6 +519,8 @@ function openpgp_crypto_digKey_own(algo, numBits) {
 			}
 
 			pair = openpgp_crypto_pair_from_RSA(key, numBits, algo, privKeyUsage, pubKeyUsage);
+			pair.privateKey.extractable = res.privExtractable;
+			pair.publicKey.extractale = res.pubExtractable;
 			break;
 
 		default:
@@ -533,7 +537,7 @@ function openpgp_crypto_digKey_own(algo, numBits) {
  * @param {Integer} numBits Number of bits to make the key to be generated
  * @return {openpgp_keypair}
  */
-function openpgp_crypto_generateKeyPair_own(algo, passphrase, s2kHash, symmetricEncryptionAlgorithm){
+function openpgp_crypto_generateKeyPair_own(algo, extractable, passphrase, s2kHash, symmetricEncryptionAlgorithm){
 	var res = new openpgp_promise();
 	var numBits, pair;
 	var privKeyUsage = null, pubKeyUsage = null;
@@ -553,6 +557,8 @@ function openpgp_crypto_generateKeyPair_own(algo, passphrase, s2kHash, symmetric
 	    var rsa = new RSA();
 	    var key = rsa.generate(algo.params.modulusLength, util.hexidump(algo.params.publicExponent));
 	    pair = openpgp_crypto_pair_from_RSA(key, numBits, algo, privKeyUsage, pubKeyUsage);
+	    pair.privateKey.extractable = extractable;
+	    pair.publicKey.extractable = true;
 	    break;
 
 	default:
