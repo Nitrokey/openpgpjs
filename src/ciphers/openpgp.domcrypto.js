@@ -38,9 +38,9 @@ function openpgp_domcrypt_init(window)
 	gen = new openpgp_promise();
 	res = window.mozCipher.pk.generateKeypair(function (keyPair) {
 	    if (keyPair == null)
-		gen._onerror('The domcrypt framework could not generate a key pair');
+		gen._onerror({ target: { result: 'The domcrypt framework could not generate a key pair' } });
 	    else
-		gen._oncomplete(keyPair);
+		gen._oncomplete({ target: { result: keyPair } });
 	});
 	return gen;
     }
