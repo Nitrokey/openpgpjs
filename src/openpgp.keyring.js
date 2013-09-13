@@ -203,9 +203,9 @@ function openpgp_keyring() {
 	 * Imports a private key from an exported ascii armored message 
 	 * @param {String} armored_text PRIVATE KEY BLOCK message to read the private key from
 	 */
-	function importPrivateKey (armored_text, password) {
+	function importPrivateKey (armored_text, password, nonextractable) {
 		var result = openpgp.read_privateKey(armored_text);
-		if(!result[0].decryptSecretMPIs(password))
+		if(!nonextractable && !result[0].decryptSecretMPIs(password))
 		    return false;
 		for (var i = 0; i < result.length; i++) {
 			this.privateKeys[this.privateKeys.length] = {armored: armored_text, obj: result[i], keyId: result[i].getKeyId()};
@@ -215,6 +215,28 @@ function openpgp_keyring() {
 
 	this.importPublicKey = importPublicKey;
 	this.importPrivateKey = importPrivateKey;
+
+	function importWebCryptoKeyPair (pair) {
+		var res = new openpgp_promise();
+
+		if (pair.publicKeyArmored == null) {
+			res._onerror('No armored public key passed to importWebCryptoKeyPair()');
+			return res;
+		} else if (pair.privateKeyArmored == null) {
+			res._onerror('No armored public key passed to importWebCryptoKeyPair()');
+			return res;
+		}
+		if (!this.importPublicKey(pair.publicKeyArmored)) {
+			res._onerror('Failed to import the public key into the keyring');
+			return res;
+		}
+		if (!this.importPrivateKey(pair.privateKeyArmored, '', !pair.privateKey.extractable))
+			res._onerror('Failed to import the private key into the keyring');
+		else
+			res._oncomplete(true);
+		return res;
+	}
+	this.importWebCryptoKeyPair = importWebCryptoKeyPair;
 	
 	/**
 	 * returns the openpgp_msg_privatekey representation of the public key at public key ring index  

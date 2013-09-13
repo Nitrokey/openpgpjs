@@ -41,6 +41,7 @@ function openpgp_keypair()
 		this.publicKeyArmored = null;
 	}
 
+	this.id = null;
 	this.symmetricEncryptionAlgorithm = null;
 	this.timePacket = null;
 	this.privateKey = null;
@@ -77,4 +78,18 @@ function openpgp_webcrypto_provider()
 
 	this.initFunc = null;
 	this.initAttempted = false;
+}
+
+function openpgp_pair2webcrypto_key(_type, _name, _id)
+{
+	this.type = _type;
+	this.name = _name;
+	this.id = _id;
+}
+
+function openpgp_pair2webcrypto(_id, _provider)
+{
+	this.keyId = _id;
+	this.webProvider = _provider;
+	this.webKeys = {};
 }

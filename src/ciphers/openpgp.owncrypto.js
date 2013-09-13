@@ -84,6 +84,10 @@ function openpgp_owncrypto_init(window)
 		return res;
 	}
 
+	that.subtle.getKeyByName = function (name) {
+		return openpgp_crypto_getKeyByName_own(name);
+	}
+
 	return that;
 }
 

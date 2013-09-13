@@ -43,6 +43,7 @@ function openpgp_packet_keymaterial() {
     this.parentNode = null;
 	this.subKeySignature = null;
 	this.subKeyRevocationSignature = null;
+	this.webCryptoPair = null;
 
 	// 5.5.1. Key Packet Variants
 	
@@ -235,83 +236,126 @@ function openpgp_packet_keymaterial() {
 	function read_priv_key(input,position, len) {
 	    // - A Public-Key or Public-Subkey packet, as described above.
 	    this.publicKey = new openpgp_packet_keymaterial();
-		if (this.publicKey.read_pub_key(input,position, len) == null) {
-			util.print_error("openpgp.packet.keymaterial.js\n"+"Failed reading public key portion of a private key: "+input[position].charCodeAt()+" "+position+" "+len+"\n Aborting here...");
-			return null;
-		}
-		this.publicKey.header = openpgp_packet.write_old_packet_header(6,this.publicKey.packetLength);
-		// this.publicKey.header = String.fromCharCode(0x99) + String.fromCharCode(this.publicKey.packetLength >> 8 & 0xFF)+String.fromCharCode(this.publicKey.packetLength & 0xFF);
-		var mypos = position + this.publicKey.data.length;
-		this.packetLength = len;
-		
+	    if (this.publicKey.read_pub_key(input,position, len) == null) {
+		util.print_error("openpgp.packet.keymaterial.js\n"+"Failed reading public key portion of a private key: "+input[position].charCodeAt()+" "+position+" "+len+"\n Aborting here...");
+		return null;
+	    }
+	    this.publicKey.header = openpgp_packet.write_old_packet_header(6,this.publicKey.packetLength);
+	    // this.publicKey.header = String.fromCharCode(0x99) + String.fromCharCode(this.publicKey.packetLength >> 8 & 0xFF)+String.fromCharCode(this.publicKey.packetLength & 0xFF);
+	    var mypos = position + this.publicKey.data.length;
+	    this.packetLength = len;
+
 	    // - One octet indicating string-to-key usage conventions.  Zero
 	    //   indicates that the secret-key data is not encrypted.  255 or 254
 	    //   indicates that a string-to-key specifier is being given.  Any
 	    //   other value is a symmetric-key encryption algorithm identifier.
 	    this.s2kUsageConventions = input[mypos++].charCodeAt();
-	    
-	    if (this.s2kUsageConventions == 0)
-	    	this.hasUnencryptedSecretKeyData = true;
-	   
-	    // - [Optional] If string-to-key usage octet was 255 or 254, a one-
-	    //   octet symmetric encryption algorithm.
-	    if (this.s2kUsageConventions == 255 || this.s2kUsageConventions == 254) {
-	    	this.symmetricEncryptionAlgorithm = input[mypos++].charCodeAt();
-	    }
-	     
-	    // - [Optional] If string-to-key usage octet was 255 or 254, a
-	    //   string-to-key specifier.  The length of the string-to-key
-	    //   specifier is implied by its type, as described above.
-	    if (this.s2kUsageConventions == 255 || this.s2kUsageConventions == 254) {
-	    	this.s2k = new openpgp_type_s2k();
-	    	this.s2k.read(input, mypos);
-	    	mypos +=this.s2k.s2kLength;
-	    }
-	    
-	    // - [Optional] If secret data is encrypted (string-to-key usage octet
-	    //   not zero), an Initial Vector (IV) of the same length as the
-	    //   cipher's block size.
 	    this.symkeylength = 0;
-	    if (this.s2kUsageConventions != 0 && this.s2kUsageConventions != 255 &&
-	    		this.s2kUsageConventions != 254) {
-	    	this.symmetricEncryptionAlgorithm = this.s2kUsageConventions;
+
+	    if (this.s2kUsageConventions == 0) {
+		this.hasUnencryptedSecretKeyData = true;
+	    } else if (this.s2kUsageConventions == 255 || this.s2kUsageConventions == 254) {
+		// - [Optional] If string-to-key usage octet was 255 or 254, a one-
+		//   octet symmetric encryption algorithm.
+		this.symmetricEncryptionAlgorithm = input[mypos++].charCodeAt();
+
+		if (this.symmetricEncryptionAlgorithm != 100) { // FIXME: make this a constant
+		    // - [Optional] If string-to-key usage octet was 255 or 254, a
+		    //   string-to-key specifier.  The length of the string-to-key
+		    //   specifier is implied by its type, as described above.
+		    this.s2k = new openpgp_type_s2k();
+		    this.s2k.read(input, mypos);
+		    mypos +=this.s2k.s2kLength;
+		} else {
+		    // Handled down in the secret MPIs section
+		}
+	    } else {
+		// - [Optional] If secret data is encrypted (string-to-key usage octet
+		//   not zero), an Initial Vector (IV) of the same length as the
+		//   cipher's block size.
+		this.symmetricEncryptionAlgorithm = this.s2kUsageConventions;
+		if (this.s2kUsageConventions != 0 && this.s2k.type != 1001) {
+		    this.hasIV = true;
+		    switch (this.symmetricEncryptionAlgorithm) {
+			case  1: // - IDEA [IDEA]
+			    util.print_error("openpgp.packet.keymaterial.js\n"+"symmetric encrytryption algorithim: IDEA is not implemented");
+			    return null;
+			case  2: // - TripleDES (DES-EDE, [SCHNEIER] [HAC] - 168 bit key derived from 192)
+			case  3: // - CAST5 (128 bit key, as per [RFC2144])
+			    this.IVLength = 8;
+			    break;
+			case  4: // - Blowfish (128 bit key, 16 rounds) [BLOWFISH]
+			case  7: // - AES with 128-bit key [AES]
+			case  8: // - AES with 192-bit key
+			case  9: // - AES with 256-bit key
+			    this.IVLength = 16;
+			    break;
+			case 10: // - Twofish with 256-bit key [TWOFISH]
+			    this.IVLength = 32;	    		
+			    break;
+			case  5: // - Reserved
+			case  6: // - Reserved
+			default:
+			    util.print_error("openpgp.packet.keymaterial.js\n"+"unknown encryption algorithm for secret key :"+this.symmetricEncryptionAlgorithm);
+			    return null;
+		    }
+		    mypos++; 
+		    this.IV = input.substring(mypos, mypos+this.IVLength);
+		    mypos += this.IVLength;
+		}
 	    }
-	    if (this.s2kUsageConventions != 0 && this.s2k.type != 1001) {
-	    	this.hasIV = true;
-	    	switch (this.symmetricEncryptionAlgorithm) {
-		    case  1: // - IDEA [IDEA]
-		    	util.print_error("openpgp.packet.keymaterial.js\n"+"symmetric encrytryption algorithim: IDEA is not implemented");
-		    	return null;
-	    	case  2: // - TripleDES (DES-EDE, [SCHNEIER] [HAC] - 168 bit key derived from 192)
-	    	case  3: // - CAST5 (128 bit key, as per [RFC2144])
-	    		this.IVLength = 8;
-		    	break;
-		    case  4: // - Blowfish (128 bit key, 16 rounds) [BLOWFISH]
-		    case  7: // - AES with 128-bit key [AES]
-	    	case  8: // - AES with 192-bit key
-	    	case  9: // - AES with 256-bit key
-	    		this.IVLength = 16;
-		    	break;
-	    	case 10: // - Twofish with 256-bit key [TWOFISH]
-	    		this.IVLength = 32;	    		
-		    	break;
-	    	case  5: // - Reserved
-	    	case  6: // - Reserved
-	    	default:
-	    		util.print_error("openpgp.packet.keymaterial.js\n"+"unknown encryption algorithm for secret key :"+this.symmetricEncryptionAlgorithm);
-	    		return null;
-	    	}
-	    	mypos++; 
-	    	this.IV = input.substring(mypos, mypos+this.IVLength);
-	    	mypos += this.IVLength;
-	    }
+
+	    /* Remove any private keys from the webCryptoPair */
+	    if (this.webCryptoPair != null && this.webCryptoPair.webKeys != null &&
+		this.webCryptoPair.webKeys['private'] != null)
+		delete this.webCryptoPair.webKeys['private'];
+
 	    // - Plain or encrypted multiprecision integers comprising the secret
 	    //   key data.  These algorithm-specific fields are as described
 	    //   below.
 
       // s2k type 1001 corresponds to GPG specific extension without primary key secrets
       // http://www.gnupg.org/faq/GnuPG-FAQ.html#how-can-i-use-gnupg-in-an-automated-environment
-	    if (this.s2kUsageConventions != 0 && this.s2k.type == 1001) {
+	    if ((this.s2kUsageConventions == 254 || this.s2kUsageConventions == 255) &&
+		this.symmetricEncryptionAlgorithm == 100) { // FIXME: make this a constant
+		/* OK, we've got a WebCrypto key there. */
+		var provider, name, id;
+		var mpi = new openpgp_type_mpi();
+
+		function getMPIString() {
+			if (mpi.read(input, mypos, len - mypos) == null)
+			    return null;
+			mypos += mpi.packetLength;
+			var arr = mpi.toBigInteger().toByteArray();
+			console.log(arr);
+			if (arr.length == 1 && arr[0] == 0)
+			    return null;
+			return util.bin2str(arr);
+		}
+
+		provider = getMPIString();
+		if (provider == null)
+		    /*
+		    throw ('No WebCrypto provider name in the OpenPGP.js private key stub';
+		    HACKITY HACK!
+		    */
+		    provider = "owncrypto";
+
+		name = getMPIString();
+		if (name == null)
+		    throw 'No WebCrypto key name in the OpenPGP.js private key stub';
+
+		id = getMPIString();
+
+		if (this.webCryptoPair != null) {
+			if (this.webCryptoPair.provider != provider)
+				throw 'read_priv_key(): trying to store a private WebCrypto key from provider "' + provider + '" into an already-initialized openpgp_pair2webcrypto object with provider "' + this.webCryptoPair.provider + '"';
+		} else {
+			this.webCryptoPair = new openpgp_pair2webcrypto(null, provider);
+		}
+		this.webCryptoPair.webKeys['private'] = new openpgp_pair2webcrypto_key('private', name, id);
+		console.log(this.webCryptoPair);
+	    } else if (this.s2kUsageConventions != 0 && this.s2k.type == 1001) {
 	    	this.secMPIs = null;
 	    	this.encryptedMPIData = null;
 	    } else if (!this.hasUnencryptedSecretKeyData) {
@@ -773,6 +817,44 @@ function openpgp_packet_keymaterial() {
 		var header = openpgp_packet.write_packet_header(tag,body.length);
 		return {string: header+body , header: header, body: body};
     }
+
+    function write_private_key_webcrypto_stub(keyType, key, keyWC, timePacket){
+	var res = new openpgp_promise();
+
+	if (keyWC.name == null) {
+	    res._onerror("openpgp.packet.keymaterial.js\n"+'error writing private key stub, no key name');
+	    return res;
+	}
+	var tag = 5;
+	var body = String.fromCharCode(4);
+	body += timePacket;
+
+	body += String.fromCharCode(keyType);//public key algo
+	switch(keyType){
+	    case 1:
+		body += key.n.toMPI();
+		body += key.ee.toMPI();
+		body += String.fromCharCode(254); //octet of 254 indicates s2k with SHA1
+		//if s2k == 255,254 then 1 octet symmetric encryption algo
+		body += String.fromCharCode(100); // FIXME: make this a constant
+		var mpi = new BigInteger(util.str2bin(keyWC.opgp.provider.name), 256);
+		body += mpi.toMPI();
+		mpi = new BigInteger(util.str2bin(keyWC.name), 256);
+		body += mpi.toMPI();
+		if (keyWC.id != null) {
+		    var mpi = new BigInteger(util.str2bin(keyWC.id), 256);
+		    body += mpi.toMPI();
+		}
+		break;
+
+	    default :
+		res._onerror("openpgp.packet.keymaterial.js\n"+'error writing private key, unknown type :'+keyType);
+		return res;
+	}
+	var header = openpgp_packet.write_packet_header(tag,body.length);
+	res._oncomplete({string: header+body , header: header, body: body});
+	return res;
+    }
 	
 	/*
      * Same as write_private_key, but has less information because of 
@@ -815,5 +897,6 @@ function openpgp_packet_keymaterial() {
 	this.getKeyId = getKeyId;
 	this.getFingerprint = getFingerprint;
 	this.write_private_key = write_private_key;
+	this.write_private_key_webcrypto_stub = write_private_key_webcrypto_stub;
 	this.write_public_key = write_public_key;
 }

@@ -429,11 +429,49 @@ function openpgp_crypto_stashKey_own(pair, numBits){
 	window.localStorage[kname + "." + id] = val;
 	window.localStorage["openpgp.own.key.last.a" + aname + ".s" + numBits] = kname;
 
-	priv.name = kname;
+	priv.name = kname + ".tv";
 	priv.id = id;
-	pub.name = kname;
+	pub.name = kname + ".tp";
 	pub.id = id;
 	return null;
+}
+
+function openpgp_crypto_getKeyByName_own(name) {
+	var res = new openpgp_promise();
+
+	var prefix = "openpgp.own.key.a";
+	if (name.substring(0, prefix.length) != prefix) {
+		res._onerror({ target: { result: 'Invalid structure for an owncrypto key name at the start' } });
+		return res;
+	}
+	var type = name.substring(name.length - 3);
+	if (type != ".tv" && type != ".tp") {
+		res._onerror({ target: { result: 'Invalid key type in an owncrypto key name' } });
+		return res;
+	}
+
+	var kname = name.substring(0, name.length - 3);
+	var last = window.localStorage[kname + ".last"];
+	if (last == null) {
+		res._oncomplete({ target: { result: null } });
+		return res;
+	}
+	var arr = [];
+	for (var i = 0; i <= last; i++) {
+		var keyname = kname + '.' + i;
+		var val = window.localStorage[keyname];
+		if (val == null) {
+			res._onerror({ target: { result: 'Internal error in openpgp_crypto_getKeyByName_own(): no window.localStorage["' + keyname + '"] while last is ' + last } });
+			return res;
+		}
+		pair = openpgp_crypto_digKeyPairFromJSON_own(val, kname, i);
+		if (type == ".tv")
+			arr[arr.length] = pair.privateKey;
+		else
+			arr[arr.length] = pair.publicKey;
+	}
+	res._oncomplete({ target: { result: arr } });
+	return res;
 }
 
 function openpgp_crypto_pair_from_RSA(key, numBits, algo, privKeyUsage, publicKeyUsage) {
@@ -481,6 +519,19 @@ function openpgp_crypto_digKey_own(algo, numBits) {
 		console.error("OpenPGP.js error: no stashed " + kname + "." + id + " member");
 		return null;
 	}
+	return openpgp_crypto_digKeyPairFromJSON_own(val, kname, id);
+}
+
+function openpgp_crypto_digKeyPairFromJSON_own(val, kname, id) {
+	var algoShort, numBits, pieces;
+	pieces = kname.split('.');
+	if (pieces.length < 5 || pieces[0] != 'openpgp' || pieces[1] != 'own' || pieces[2] != 'key' || pieces[3][0] != 'a' || pieces[4][0] != 's') {
+		console.error("OpenPGP.js error: invalid stashed key name " + kname);
+		return null;
+	}
+	algoShort = pieces[3].substring(1);
+	numBits = pieces[4].substring(1);
+
 	var res = JSON.parse(val);
 	if (res == null) {
 		console.error("OpenPGP.js error: invalid JSON data for stashed " + kname + "." + id);
@@ -490,14 +541,18 @@ function openpgp_crypto_digKey_own(algo, numBits) {
 	var pair;
 	var privKeyUsage = null, pubKeyUsage = null;
 
-	switch (algo.name) {
-		case 'RSASSA-PKCS1-v1_5':
+	algo = { 'name': null };
+
+	switch (algoShort) {
+		case 'RSASSAPKCS1v1_5':
+			algo.name = 'RSASSA-PKCS1-v1_5';
 			privKeyUsage = ['sign'];
 			pubKeyUsage = ['verify'];
 			/* FALLTHROUGH */
 
-		case 'RSAES-PKCS1-v1_5':
+		case 'RSAESPKCS1v1_5':
 			if (privKeyUsage == null) {
+				algo.name = 'RSAES-PKCS1-v1_5';
 				privKeyUsage = ['decrypt'];
 				pubKeyUsage = ['encrypt'];
 			}
@@ -524,7 +579,7 @@ function openpgp_crypto_digKey_own(algo, numBits) {
 			break;
 
 		default:
-			console.error("OpenPGP.js error: don't know how to dig up a " + algo.name + " key from the stash");
+			console.error("OpenPGP.js error: don't know how to dig up a " + algoShort + " key from the stash");
 			return null;
 	}
 	return pair;

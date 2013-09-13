@@ -43,27 +43,16 @@ function openpgp_webcrypto_provider_add(name, initfunc)
 	openpgp_webcrypto_providers[name] = prov;
 }
 
-function openpgp_webcrypto_init(window, preferred)
+function openpgp_webcrypto_provider_get_first(list)
 {
-	/* Make sure we have something... */
-	if (preferred == null)
-		preferred = openpgp_webcrypto_preferred_providers;
-
-	/* Also accept a single provider name. */
-	if (typeof preferred == 'string' || preferred instanceof String)
-		preferred = [preferred];
-
-	/* Well... go for it! */
-	var res = null;
-	for (var i = 0; i < preferred.length; i++) {
-		var name = preferred[i];
+	for (var i = 0; i < list.length; i++) {
+		var name = list[i];
 		var prov = openpgp_webcrypto_providers[name];
 
 		if (prov == null) {
 			continue;
 		} else if (prov.crypto != null) {
-			res = prov;
-			break;
+			return prov;
 		} else if (prov.initAttempted) {
 			continue;
 		}
@@ -78,12 +67,26 @@ function openpgp_webcrypto_init(window, preferred)
 			/* Found it! */
 			prov.crypto = r.crypto;
 			prov.subtle = r.subtle;
-			res = prov;
-			break;
+			return prov;
 		} catch (err) {
+			window.alert("Initialization error for " + prov + ": " + err);
 		}
 	}
+	return null;
+}
 
+function openpgp_webcrypto_init(window, preferred)
+{
+	/* Make sure we have something... */
+	if (preferred == null)
+		preferred = openpgp_webcrypto_preferred_providers;
+
+	/* Also accept a single provider name. */
+	if (typeof preferred == 'string' || preferred instanceof String)
+		preferred = [preferred];
+
+	/* Well... go for it! */
+	var res = openpgp_webcrypto_provider_get_first(preferred);
 	if (res == null)
 		throw 'openpgp_webcrypto_init(): could not find a suitable WebCrypto provider';
 
@@ -124,6 +127,28 @@ function openpgp_crypto_exportKey(format, key) {
 	return res;
 }
 
+function openpgp_webcrypto_pair2webcrypto_store(pair)
+{
+	var p2wc;
+
+	p2wc = new openpgp_pair2webcrypto(pair.fingerprint, openpgp_webcrypto.name);
+
+	var have = false;
+	if (pair.publicKey.name != null)
+		p2wc.webKeys['public'] = new openpgp_pair2webcrypto_key(
+		    'public', pair.publicKey.name, pair.publicKey.id);
+	if (pair.privateKey.name != null)
+		p2wc.webKeys['private'] = new openpgp_pair2webcrypto_key(
+		    'private', pair.privateKey.name, pair.privateKey.id);
+
+	if (Object.keys(p2wc.webKeys).length > 0) {
+		window.localStorage['openpgp.webcrypto.pair.' + pair.id] = JSON.stringify(p2wc);
+		pair.pair2webcrypto = p2wc;
+	} else {
+		pair.pair2webcrypto = null;
+	}
+}
+
 function openpgp_webcrypto_tag(key, numBits)
 {
 	if (key.opgp == null)
@@ -131,6 +156,12 @@ function openpgp_webcrypto_tag(key, numBits)
 
 	key.opgp.numBits = numBits;
 	key.opgp.provider = openpgp_webcrypto;
+}
+
+function openpgp_webcrypto_tag_pair(pair, numBits)
+{
+	openpgp_webcrypto_tag(pair.privateKey, numBits);
+	openpgp_webcrypto_tag(pair.publicKey, numBits);
 }
 
 function openpgp_crypto_generateKeyPair(keyType, numBits, symmetricEncryptionAlgorithm)
@@ -183,8 +214,7 @@ function openpgp_crypto_generateKeyPair(keyType, numBits, symmetricEncryptionAlg
 			encPair.privateKey = key.target.result.privateKey;
 			encPair.symmetricEncryptionAlgorithm = symmetricEncryptionAlgorithm;
 			encPair.timePacket = timePacket;
-			openpgp_webcrypto_tag(encPair.publicKey, numBits);
-			openpgp_webcrypto_tag(encPair.privateKey, numBits);
+			openpgp_webcrypto_tag_pair(encPair, numBits);
 
 			/* We're done, but ignore the encryption subkey for now. */
 			res._oncomplete(signPair);
@@ -279,5 +309,36 @@ function openpgp_crypto_signData(hash_algo, algo, publicMPIs, privateKey, data) 
 		res._onerror(e.target.result);
 	}
 
+	return res;
+}
+
+function openpgp_webcrypto_get_key(provider, name, id)
+{
+	var res = new openpgp_promise();
+	var prov = openpgp_webcrypto_provider_get_first([provider]);
+	if (prov == null) {
+		res._onerror({ target: { result: 'OpenPGP.js WebCrypto provider ' + provider + ' failed to initialize' } });
+		return res;
+	}
+
+	prov.subtle.getKeyByName(name).then(
+		function (r) {
+			var keys = r.target.result;
+			if (keys == null) {
+				res._onerror({ target: { result: 'Key "' + name + '" / ' + id + ' not present in the OpenPGP.js WebCrypto provider ' + provider } });
+				return;
+			}
+			for (var i = 0; i < keys.length; i++)
+				if (id == null && keys[i].id == null ||
+				    id != null && keys[i].id == id) {
+					res._oncomplete({ target: { result: keys[i] } });
+					return;
+				}
+			res._onerror({ target: { result: 'Key "' + name + '" / ' + id + ' not present in the OpenPGP.js WebCrypto provider ' + provider } });
+		},
+		function (e) {
+			return e;
+		}
+	);
 	return res;
 }

@@ -521,6 +521,7 @@ function _openpgp () {
 		
 		var keyPair = null, privKey = null, pubKey = null;
 		var publicKeyString = null, publicKeyStringFull = null, publicKeyMat = null;
+		var publicRSAKey;
 		var privateKeyString = null, privateKeyStringFull = null;
 		var result = new openpgp_keypair();
 
@@ -530,12 +531,22 @@ function _openpgp () {
 
 		sign_oncomplete = function (sig) {
 			keyPair.publicKeyArmored = openpgp_encoding_armor(4, publicKeyStringFull + userIdString + sig.openpgp );
-			if (privKey.extractable)
-				keyPair.privateKeyArmored = openpgp_encoding_armor(5, privateKeyStringFull + userIdString + sig.openpgp );
-			else
-				keyPair.privateKeyArmored = null;
+			keyPair.privateKeyArmored = openpgp_encoding_armor(5, privateKeyStringFull + userIdString + sig.openpgp );
 
 			res._oncomplete(keyPair);
+		}
+
+		exp_priv_private_key_written = function (pk) {
+			privateKeyString = pk.body;
+			privateKeyStringFull = pk.string;
+
+			userId = util.encode_utf8(userId); // needs same encoding as in userIdString
+			var hashData = String.fromCharCode(0x99)+ String.fromCharCode(((publicKeyString.length) >> 8) & 0xFF) 
+				+ String.fromCharCode((publicKeyString.length) & 0xFF) +publicKeyString+String.fromCharCode(0xB4) +
+				String.fromCharCode((userId.length) >> 24) +String.fromCharCode(((userId.length) >> 16) & 0xFF) 
+				+ String.fromCharCode(((userId.length) >> 8) & 0xFF) + String.fromCharCode((userId.length) & 0xFF) + userId;
+			var signature = new openpgp_packet_signature();
+			signature.write_message_signature(16,hashData, privKey, publicKeyMat).then(sign_oncomplete, pass_error);
 		}
 
 		exp_priv_oncomplete = function (exp) {
@@ -559,19 +570,15 @@ function _openpgp () {
 							rsaKey["ee"] = mpi;
 					}
 
-					var pk = new openpgp_packet_keymaterial().write_private_key(keyType, rsaKey, 'just', 8, 3, keyPair.timePacket);
-					privateKeyString = pk.body;
-					privateKeyStringFull = pk.string;
-					privateKeyMat = new openpgp_packet_keymaterial().read_priv_key(privateKeyString, 0, privateKeyString.length);
+					exp_priv_private_key_written(
+					    new openpgp_packet_keymaterial().write_private_key(
+					    keyType, rsaKey, 'just', 8, 3, keyPair.timePacket));
+				} else if (privKey.name != null) {
+					new openpgp_packet_keymaterial().write_private_key_webcrypto_stub(
+					    keyType, publicRSAKey, privKey, keyPair.timePacket).then(
+					    exp_priv_private_key_written,
+					    pass_error);
 				}
-
-				userId = util.encode_utf8(userId); // needs same encoding as in userIdString
-				var hashData = String.fromCharCode(0x99)+ String.fromCharCode(((publicKeyString.length) >> 8) & 0xFF) 
-					+ String.fromCharCode((publicKeyString.length) & 0xFF) +publicKeyString+String.fromCharCode(0xB4) +
-					String.fromCharCode((userId.length) >> 24) +String.fromCharCode(((userId.length) >> 16) & 0xFF) 
-					+ String.fromCharCode(((userId.length) >> 8) & 0xFF) + String.fromCharCode((userId.length) & 0xFF) + userId;
-				var signature = new openpgp_packet_signature();
-				signature.write_message_signature(16,hashData, privKey, publicKeyMat).then(sign_oncomplete, pass_error);
 			} catch (err) {
 				console.log(err.stack);
 				res._onerror("openpgp.generate_key_pair.exp_priv_oncomplete: exception caught: " + err);
@@ -583,10 +590,10 @@ function _openpgp () {
 				var rsa = openpgp_spki_to_rsa(exp);
 				var keyStr = util.hexidump(rsa.key), expStr = util.hexidump(rsa.exp);
 				var rsaObj = new RSA();
-				var rsaKey = new rsaObj.keyObject();
-				rsaKey.n = new BigInteger(keyStr, 16);
-				rsaKey.ee = new BigInteger(expStr, 16);
-				var pk = new openpgp_packet_keymaterial().write_public_key(keyType, rsaKey, keyPair.timePacket);
+				publicRSAKey = new rsaObj.keyObject();
+				publicRSAKey.n = new BigInteger(keyStr, 16);
+				publicRSAKey.ee = new BigInteger(expStr, 16);
+				var pk = new openpgp_packet_keymaterial().write_public_key(keyType, publicRSAKey, keyPair.timePacket);
 				publicKeyString = pk.body;
 				publicKeyStringFull = pk.string;
 				publicKeyMat = new openpgp_packet_keymaterial().read_pub_key(publicKeyString, 0, publicKeyString.length);

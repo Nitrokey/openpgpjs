@@ -27,6 +27,8 @@
   <script src="./src/type/openpgp.type.s2k.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/util/util.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/openpgp.keyring.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/openpgp.msg.privatekey.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/openpgp.msg.publickey.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/openpgp.promise.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/openpgp.struct.js" type="text/javascript" charset="utf-8"></script>
 
@@ -40,8 +42,11 @@
 
   <form action="signtest1genkey" method="POST" name="genkeyform" id="genkeyform" onsubmit="return dogenkey()">
     <p>Click this button:
-      <input type="submit" id="genkey" value="Generate key" />
+      <input type="submit" id="genkey" value="Generate key" onclick="submitButton = 'gen'" />
+      or&#8230; well, maybe this one:
+      <input type="submit" id="fetchkey" value="Fetch generated key" onclick="submitButton = 'fetch'" />
       first&#8230;</p>
+  <input type="hidden" name="_button" value="none" />
   <textarea rows="25" cols="100" name="genkeypriv" id="genkeypriv">&nbsp;</textarea>
   <textarea rows="25" cols="100" name="genkeypub" id="genkeypub">&nbsp;</textarea>
   </form>
