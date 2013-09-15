@@ -327,7 +327,6 @@ function openpgp_packet_keymaterial() {
 			    return null;
 			mypos += mpi.packetLength;
 			var arr = mpi.toBigInteger().toByteArray();
-			console.log(arr);
 			if (arr.length == 1 && arr[0] == 0)
 			    return null;
 			return util.bin2str(arr);
@@ -354,7 +353,6 @@ function openpgp_packet_keymaterial() {
 			this.webCryptoPair = new openpgp_pair2webcrypto(null, provider);
 		}
 		this.webCryptoPair.webKeys['private'] = new openpgp_pair2webcrypto_key('private', name, id);
-		console.log(this.webCryptoPair);
 	    } else if (this.s2kUsageConventions != 0 && this.s2k.type == 1001) {
 	    	this.secMPIs = null;
 	    	this.encryptedMPIData = null;
