@@ -26,7 +26,7 @@
 
 function openpgp_domcrypt_init(window)
 {
-    var that = {}, thatsubtle = {};
+    var that = {}, thatsubtle = {}, thatcryptokeys = {};
 
     if (window.mozCipher == null) {
 	throw("domcrypt extension not found, unable to create window.domCrypto");
@@ -45,7 +45,15 @@ function openpgp_domcrypt_init(window)
 	return gen;
     }
 
-    return { crypto: that, subtle: thatsubtle };
+    thatcryptokeys.getKeyByName = function (name) {
+	var res;
+
+	res = new openpgp_promise();
+	res._onerror({ target: { result: 'FIXME: DOMCrypt.getKeyByName() not implemented yet' } });
+	return res;
+    }
+
+    return { crypto: that, cryptokeys: thatcryptokeys, subtle: thatsubtle };
 }
 
 openpgp_webcrypto_provider_add('domcrypt', openpgp_domcrypt_init);

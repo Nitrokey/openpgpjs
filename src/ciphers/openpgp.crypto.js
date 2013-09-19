@@ -439,6 +439,11 @@ function openpgp_crypto_stashKey_own(pair, numBits){
 function openpgp_crypto_getKeyByName_own(name) {
 	var res = new openpgp_promise();
 
+	if (name == null) {
+		res._onerror({ target: { result: 'FIXME: implement owncrypto.getKeyByName(null)'; } });
+		return res;
+	}
+
 	var prefix = "openpgp.own.key.a";
 	if (name.substring(0, prefix.length) != prefix) {
 		res._onerror({ target: { result: 'Invalid structure for an owncrypto key name at the start' } });
@@ -453,7 +458,7 @@ function openpgp_crypto_getKeyByName_own(name) {
 	var kname = name.substring(0, name.length - 3);
 	var last = window.localStorage[kname + ".last"];
 	if (last == null) {
-		res._oncomplete({ target: { result: null } });
+		res._oncomplete({ target: { result: [] } });
 		return res;
 	}
 	var arr = [];

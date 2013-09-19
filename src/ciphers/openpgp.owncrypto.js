@@ -29,6 +29,7 @@ function openpgp_owncrypto_init(window)
 	var that = {};
 
 	that.crypto = {};
+	that.cryptokeys = {};
 	that.subtle = {};
 
 	that.crypto.getRandomValues = window.crypto.getRandomValues;
@@ -84,7 +85,7 @@ function openpgp_owncrypto_init(window)
 		return res;
 	}
 
-	that.subtle.getKeyByName = function (name) {
+	that.cryptokeys.getKeyByName = function (name) {
 		return openpgp_crypto_getKeyByName_own(name);
 	}
 

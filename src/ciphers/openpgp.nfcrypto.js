@@ -572,7 +572,17 @@ function openpgp_nfcrypto_init(window) {
     try {
 	onLoad();
 
-	return { crypto: window.nfCrypto, subtle: window.nfCrypto.subtle };
+	return {
+		crypto: window.nfCrypto,
+		subtle: window.nfCrypto.subtle,
+		cryptokeys: {
+			getKeyByName: function (name) {
+				var res = new openpgp_promise();
+				res._onerror({ target: { result: 'The NfWebCrypto framework has no key storage/discovery capabilities yet'; } });
+				return res;
+			}
+		}
+	};
     } catch (onLoadErr) {
 	console.log("Probably not fatal, but NfWebCrypto.onLoad() straight up failed: " + onLoadErr);
     }

@@ -61,12 +61,13 @@ function openpgp_webcrypto_provider_get_first(list)
 		try {
 			var r = prov.initFunc(window);
 
-			if (r == null || r.crypto == null || r.subtle == null)
+			if (r == null || r.crypto == null || r.subtle == null || r.cryptokeys == null)
 				continue;
 
 			/* Found it! */
 			prov.crypto = r.crypto;
 			prov.subtle = r.subtle;
+			prov.cryptokeys = r.cryptokeys;
 			return prov;
 		} catch (err) {
 			window.alert("Initialization error for " + prov + ": " + err);
@@ -321,7 +322,7 @@ function openpgp_webcrypto_get_key(provider, name, id)
 		return res;
 	}
 
-	prov.subtle.getKeyByName(name).then(
+	prov.cryptokeys.getKeyByName(name).then(
 		function (r) {
 			var keys = r.target.result;
 			if (keys == null) {
@@ -337,8 +338,26 @@ function openpgp_webcrypto_get_key(provider, name, id)
 			res._onerror({ target: { result: 'Key "' + name + '" / ' + id + ' not present in the OpenPGP.js WebCrypto provider ' + provider } });
 		},
 		function (e) {
-			return e;
+			res._onerror(e);
 		}
 	);
 	return res;
+}
+
+function openpgp_webcrypto_get_all_keys(provider)
+{
+	var res = new openpgp_promise();
+	try {
+		var prov = openpgp_webcrypto_provider_get_first([provider]);
+		if (prov == null) {
+			res._onerror({ target: { result: 'OpenPGP.js WebCrypto provider ' + provider + ' failed to initialize' } });
+			return res;
+		}
+
+		return prov.cryptokeys.getKeyByName(null);
+	} catch (err) {
+		res._onerror({ target: { result: "Failed to fetch keys: " + err } });
+		return res;
+	}
+	/* NOTREACHED */
 }
