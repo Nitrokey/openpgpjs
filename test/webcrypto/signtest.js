@@ -9,8 +9,9 @@ function initialize_openpgp()
 
 	window.alert("Initializing OpenPGPjs...");
 	//openpgp.init(["domcrypt", "aiee", "browser", "nfwebcrypto", "own", "quux"]);
-	openpgp.init(["owncrypto"]);
+	//openpgp.init(["owncrypto"]);
 	//openpgp.init(["domcrypt"]);
+	openpgp.init(["cryptostick"]);
 	//openpgp.init(["nfwebcrypto"]);
 	openpgp_initialized = true;
 }
@@ -18,6 +19,46 @@ function initialize_openpgp()
 function dogenkey()
 {
 	try {
+		window.alert("window.cryptostick is " + window.cryptostick);
+		openpgp_webcrypto_get_all_keys("cryptostick").then(
+			function (res) {
+				window.alert("Got a result from getKeyByName(null)!");
+				var data = res.target.result;
+				s = "";
+				for (var i = 0; i < data.length; i++) {
+					s += data[i].name + " ... ";
+				}
+				window.alert(s);
+
+				if (data.length == 0) {
+					window.alert("Not testing any keys :)");
+					return;
+				}
+
+				var idx;
+				if (data.length == 1) {
+					window.alert("About to try for the first key...");
+					idx = 0;
+				} else {
+					window.alert("About to try for the second key...");
+					idx = 1;
+				}
+				openpgp_webcrypto_get_key("cryptostick", data[idx].name, data[idx].id).then(
+					function (r) {
+						window.alert("Got a result from getKeyByName('" + data[idx].name + "')");
+						window.alert("name " + r.target.result.name + ", id " + r.target.result.id);
+					},
+					function (e) {
+						window.alert("openpgp_webcrypto_get_key('" + data[0].name + "', '" + data[0].id + "') returned an error: " + e.target.result);
+					}
+				);
+			},
+			function (res) {
+				console.log("RDBG getKeyByName(null) error:"); console.log(res);
+				window.alert("getKeyByName(null) error: " + res.target.result);
+			}
+		);
+		throw 'RDBG FIXME: nothing more :)';
 		if (submitButton == 'fetch') {
 			return dofetchkey();
 		} else if (submitButton != 'gen') {
@@ -42,6 +83,7 @@ function dogenkey()
 			}
 		);
 	} catch (err) {
+		console.log(err);
 		console.log(err.stack);
 		window.alert("dogenkey() error: " + err);
 	}
