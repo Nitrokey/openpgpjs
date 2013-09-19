@@ -578,7 +578,7 @@ function openpgp_nfcrypto_init(window) {
 		cryptokeys: {
 			getKeyByName: function (name) {
 				var res = new openpgp_promise();
-				res._onerror({ target: { result: 'The NfWebCrypto framework has no key storage/discovery capabilities yet'; } });
+				res._onerror({ target: { result: 'The NfWebCrypto framework has no key storage/discovery capabilities yet' } });
 				return res;
 			}
 		}
