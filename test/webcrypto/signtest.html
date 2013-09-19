@@ -41,6 +41,32 @@
   <script src="./src/openpgp.js" type="text/javascript" charset="utf-8"></script>
   <script src="./signtest.js" type="text/javascript" charset="utf-8"></script>
 
+  <form action="listkeys" method="POST" name="listkeysform" id="listkeysform" onsubmit="return dolistkeys()">
+    <p>List the keys for provider:
+      <input type="radio" name="listprov" id="listprov_cryptostick" value="cryptostick" checked="checked" />
+      <label for="listprov_cryptostick">CryptoStick</label>
+      <input type="radio" name="listprov" id="listprov_domcrypt" value="domcrypt" />
+      <label for="listprov_domcrypt">DOMCrypt</label>
+      <input type="radio" name="listprov" id="listprov_owncrypto" value="owncrypto" />
+      <label for="listprov_owncrypto">owncrypto</label>
+      <input type="radio" name="listprov" id="listprov_nfwebcrypto" value="nfwebcrypto" />
+      <label for="listprov_nfwebcrypto">NfWebCrypto</label>
+      </p>
+    <p>List keys:
+      <input type="radio" name="listall" id="listall_all" value="all" checked="checked" />
+      <label for="listall_all">all</label>
+      or
+      <input type="radio" name="listall" id="listall_single" value="single" />
+      <label for="listall_single">a single key</label>
+      &mdash; name:
+      <input type="text" name="listname" id="listname" value="" />
+      id:
+      <input type="text" name="listid" id="listid" value="" />
+      </p>
+    <p><input type="submit" id="listkeys" value="List keys" /></p>
+    <textarea rows="12" cols="100" name="listkeysdata" id="listkeysdata">&nbsp;</textarea>
+  </form>
+
   <form action="signtest1genkey" method="POST" name="genkeyform" id="genkeyform" onsubmit="return dogenkey()">
     <p>Click this button:
       <input type="submit" id="genkey" value="Generate key" onclick="submitButton = 'gen'" />

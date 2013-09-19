@@ -2,63 +2,22 @@ var openpgp_initialized = false;
 var generatedKeypair = null;
 var submitButton = 'none';
 
-function initialize_openpgp()
+function initialize_openpgp(provlist)
 {
 	if (openpgp_initialized)
 		return true;
 
+	if (provlist == null)
+		//provlist = ["cryptostick", "domcrypt", "nfwebcrypto", "owncrypto"];
+		provlist = ["cryptostick", "owncrypto"];
 	window.alert("Initializing OpenPGPjs...");
-	//openpgp.init(["domcrypt", "aiee", "browser", "nfwebcrypto", "own", "quux"]);
-	//openpgp.init(["owncrypto"]);
-	//openpgp.init(["domcrypt"]);
-	openpgp.init(["cryptostick"]);
-	//openpgp.init(["nfwebcrypto"]);
+	openpgp.init(provlist);
 	openpgp_initialized = true;
 }
 
 function dogenkey()
 {
 	try {
-		window.alert("window.cryptostick is " + window.cryptostick);
-		openpgp_webcrypto_get_all_keys("cryptostick").then(
-			function (res) {
-				window.alert("Got a result from getKeyByName(null)!");
-				var data = res.target.result;
-				s = "";
-				for (var i = 0; i < data.length; i++) {
-					s += data[i].name + " ... ";
-				}
-				window.alert(s);
-
-				if (data.length == 0) {
-					window.alert("Not testing any keys :)");
-					return;
-				}
-
-				var idx;
-				if (data.length == 1) {
-					window.alert("About to try for the first key...");
-					idx = 0;
-				} else {
-					window.alert("About to try for the second key...");
-					idx = 1;
-				}
-				openpgp_webcrypto_get_key("cryptostick", data[idx].name, data[idx].id).then(
-					function (r) {
-						window.alert("Got a result from getKeyByName('" + data[idx].name + "')");
-						window.alert("name " + r.target.result.name + ", id " + r.target.result.id);
-					},
-					function (e) {
-						window.alert("openpgp_webcrypto_get_key('" + data[0].name + "', '" + data[0].id + "') returned an error: " + e.target.result);
-					}
-				);
-			},
-			function (res) {
-				console.log("RDBG getKeyByName(null) error:"); console.log(res);
-				window.alert("getKeyByName(null) error: " + res.target.result);
-			}
-		);
-		throw 'RDBG FIXME: nothing more :)';
 		if (submitButton == 'fetch') {
 			return dofetchkey();
 		} else if (submitButton != 'gen') {
@@ -86,6 +45,76 @@ function dogenkey()
 		console.log(err);
 		console.log(err.stack);
 		window.alert("dogenkey() error: " + err);
+	}
+	return false;
+}
+
+function dolistkeys()
+{
+	try {
+		initialize_openpgp();
+
+		var prov = $('input[name=listprov]:checked', '#listkeysform').val();
+		var all = $('input[name=listall]:checked', '#listkeysform').val();
+		var name = $('#listname').val();
+		var id = $('#listid').val();
+		if (id == "")
+			id = null;
+
+		function show_keys_clear() {
+			$('textarea#listkeysdata').val('');
+		}
+
+		function show_keys_start(num) {
+			$('textarea#listkeysdata').val('Found ' + num + ' key' + (num == 1? "": "s") + "\n");
+		}
+
+		function show_single_key(k) {
+			var s = "Key name " + k.name + " id " + k.id + "\n" +
+			    "- algorithm " + k.algorithm.name + "\n" +
+			    "- type " + k.type + "\n" +
+			    "- extractable " + k.extractable + "\n" +
+			    "\n";
+			$('textarea#listkeysdata').val($('textarea#listkeysdata').val() + s);
+		}
+
+		function show_all_keys(k) {
+			for (var i = 0; i < k.length; i++)
+				show_single_key(k[i]);
+		}
+
+		function show_keys_end() {
+		}
+
+		show_keys_clear();
+		if (all == "all") {
+			openpgp_webcrypto_get_all_keys(prov).then(
+				function (r) {
+					var keys = r.target.result;
+					show_keys_start(keys.length);
+					show_all_keys(keys);
+					show_keys_end();
+				},
+				function (e) {
+					window.alert('Could not fetch all the keys for provider ' + prov + ': ' + e.target.result);
+				}
+			);
+		} else {
+			openpgp_webcrypto_get_key(prov, name, id).then(
+				function (r) {
+					show_keys_start(1);
+					show_single_key(r.target.result);
+					show_keys_end();
+				},
+				function (e) {
+					window.alert('Could not fetch key ' + name + ' / ' + id + ' for provider ' + prov + ': ' + e.target.result);
+				}
+			);
+		}
+	} catch (err) {
+		console.log(err);
+		console.log(err.stack);
+		window.alert("dolistkeys() error: " + err);
 	}
 	return false;
 }
