@@ -436,13 +436,41 @@ function openpgp_crypto_stashKey_own(pair, numBits){
 	return null;
 }
 
+var _openpgp_crypto_getAllKeys_pat = new RegExp('^(openpgp\.own\.key\.a.*)\.([0-9]+)$');
+
+function openpgp_crypto_getAllKeys_own() {
+	var name, arr, res;
+
+	res = new openpgp_promise();
+	arr = [];
+	for (name in window.localStorage) {
+		var m = name.match(_openpgp_crypto_getAllKeys_pat);
+		if (!m)
+			continue;
+		var val = window.localStorage[name];
+		var pair = openpgp_crypto_digKeyPairFromJSON_own(val, m[1], m[2]);
+
+		if (pair.publicKey != null) {
+			pair.publicKey.name = m[1] + ".tp";
+			pair.publicKey.id = m[2];
+			arr[arr.length] = pair.publicKey;
+		}
+		if (pair.privateKey != null) {
+			pair.privateKey.name = m[1] + ".tv";
+			pair.privateKey.id = m[2];
+			arr[arr.length] = pair.privateKey;
+		}
+	}
+
+	res._oncomplete({ target: { result: arr } });
+	return res;
+}
+
 function openpgp_crypto_getKeyByName_own(name) {
 	var res = new openpgp_promise();
 
-	if (name == null) {
-		res._onerror({ target: { result: 'FIXME: implement owncrypto.getKeyByName(null)'; } });
-		return res;
-	}
+	if (name == null)
+		return openpgp_crypto_getAllKeys_own();
 
 	var prefix = "openpgp.own.key.a";
 	if (name.substring(0, prefix.length) != prefix) {
@@ -470,10 +498,15 @@ function openpgp_crypto_getKeyByName_own(name) {
 			return res;
 		}
 		pair = openpgp_crypto_digKeyPairFromJSON_own(val, kname, i);
-		if (type == ".tv")
+		if (type == ".tv") {
+			pair.privateKey.name = name;
+			pair.privateKey.id = i;
 			arr[arr.length] = pair.privateKey;
-		else
+		} else {
+			pair.publicKey.name = name;
+			pair.publicKey.id = i;
 			arr[arr.length] = pair.publicKey;
+		}
 	}
 	res._oncomplete({ target: { result: arr } });
 	return res;
