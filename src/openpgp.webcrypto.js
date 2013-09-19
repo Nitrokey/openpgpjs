@@ -70,7 +70,8 @@ function openpgp_webcrypto_provider_get_first(list)
 			prov.cryptokeys = r.cryptokeys;
 			return prov;
 		} catch (err) {
-			window.alert("Initialization error for " + prov + ": " + err);
+			console.log("Initialization error for WebCrypto provider " + name + ": " + err);
+			console.log(err);
 		}
 	}
 	return null;
