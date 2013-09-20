@@ -40,14 +40,9 @@ function openpgp_cryptostick_init(window)
 
 			window.cryptostick.cryptokeys.getKeyByName(name).then(
 				function (r) {
-					console.log("RDBG hfff got result:"); console.log(r);
-					console.log("RDBG hfff - count " + r.target.result.count());
 					var arr = [];
-					for (var i = 0; i < r.target.result.count(); i++) {
-						console.log("RDBG   - " + i); console.log(r.target.result.get(i));
+					for (var i = 0; i < r.target.result.count(); i++)
 						arr[arr.length] = r.target.result.get(i);
-					}
-					console.log("RDBG hfff - returning stuff"); console.log(arr);
 					res._oncomplete({ target: { result: arr } });
 				},
 				function (e) {
