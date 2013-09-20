@@ -41,8 +41,11 @@ function openpgp_cryptostick_init(window)
 			window.cryptostick.cryptokeys.getKeyByName(name).then(
 				function (r) {
 					var arr = [];
-					for (var i = 0; i < r.target.result.count(); i++)
-						arr[arr.length] = r.target.result.get(i);
+					for (var i = 0; i < r.target.result.count(); i++) {
+						var k = util.cloneChromeObject(r.target.result.get(i));
+						openpgp_webcrypto_tag(k, k.cs_numBits, 'cryptostick');
+						arr[arr.length] = k;
+					}
 					res._oncomplete({ target: { result: arr } });
 				},
 				function (e) {

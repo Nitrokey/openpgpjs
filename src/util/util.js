@@ -326,6 +326,20 @@ var Util = function() {
 		}
 		return res;
 	};
+
+	function cloneChromeObject(obj) {
+		/* TODO: maybe we should dive into arrays and hashes */
+		if (typeof(obj) != 'object')
+			return obj;
+		var res = {};
+		for (var k in obj) {
+			if (!obj.hasOwnProperty(k))
+				continue;
+			res[k] = cloneChromeObject(obj[k]);
+		}
+		return res;
+	}
+	this.cloneChromeObject = cloneChromeObject;
 };
 
 /**

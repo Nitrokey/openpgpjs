@@ -151,13 +151,17 @@ function openpgp_webcrypto_pair2webcrypto_store(pair)
 	}
 }
 
-function openpgp_webcrypto_tag(key, numBits)
+function openpgp_webcrypto_tag(key, numBits, provider)
 {
 	if (key.opgp == null)
 		key.opgp = {};
 
 	key.opgp.numBits = numBits;
-	key.opgp.provider = openpgp_webcrypto;
+
+	var prov = null;
+	if (provider != null)
+		prov = openpgp_webcrypto_provider_get_first(provider);
+	key.opgp.provider = prov != null? prov: openpgp_webcrypto;
 }
 
 function openpgp_webcrypto_tag_pair(pair, numBits)
