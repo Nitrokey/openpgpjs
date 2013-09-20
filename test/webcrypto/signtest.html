@@ -41,6 +41,14 @@
   <script src="./src/openpgp.js" type="text/javascript" charset="utf-8"></script>
   <script src="./signtest.js" type="text/javascript" charset="utf-8"></script>
 
+  <p>
+    <a href="#sect_listkeys">List keys</a> |
+    <a href="#sect_genkey">Generate a key</a> |
+    <a href="#sect_sign">Sign some text</a>
+  </p>
+
+  <h2><a id="sect_listkeys">List keys</a></h2>
+
   <form action="listkeys" method="POST" name="listkeysform" id="listkeysform" onsubmit="return dolistkeys()">
     <p>List the keys for provider:
       <input type="radio" name="listprov" id="listprov_cryptostick" value="cryptostick" checked="checked" />
@@ -67,6 +75,14 @@
     <textarea rows="12" cols="100" name="listkeysdata" id="listkeysdata">&nbsp;</textarea>
   </form>
 
+  <p>
+    <a href="#sect_listkeys">List keys</a> |
+    <a href="#sect_genkey">Generate a key</a> |
+    <a href="#sect_sign">Sign some text</a>
+  </p>
+
+  <h2><a id="sect_genkey">Generate a key</a></h2>
+
   <form action="signtest1genkey" method="POST" name="genkeyform" id="genkeyform" onsubmit="return dogenkey()">
     <p>Click this button:
       <input type="submit" id="genkey" value="Generate key" onclick="submitButton = 'gen'" />
@@ -78,6 +94,14 @@
   <textarea rows="25" cols="100" name="genkeypub" id="genkeypub">&nbsp;</textarea>
   </form>
 
+  <p>
+    <a href="#sect_listkeys">List keys</a> |
+    <a href="#sect_genkey">Generate a key</a> |
+    <a href="#sect_sign">Sign some text</a>
+  </p>
+
+  <h2><a id="sect_sign">Sign some text</a></h2>
+
   <form action="signtest1sign" method="POST" name="signform" id="signform" onsubmit="return dosign()">
     <p>Now enter some text here:</p>
     <textarea rows="5" cols="100" name="signplain" id="signplain">This is a test. This is only a test.</textarea>
@@ -86,5 +110,11 @@
       </p>
     <textarea rows="25" cols="100" name="signsigned", id="signsigned">&nbsp;</textarea>
   </form>
+
+  <p>
+    <a href="#sect_listkeys">List keys</a> |
+    <a href="#sect_genkey">Generate a key</a> |
+    <a href="#sect_sign">Sign some text</a>
+  </p>
 </body>
 </html>
