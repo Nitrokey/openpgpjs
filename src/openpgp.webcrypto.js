@@ -68,6 +68,7 @@ function openpgp_webcrypto_provider_get_first(list)
 			prov.crypto = r.crypto;
 			prov.subtle = r.subtle;
 			prov.cryptokeys = r.cryptokeys;
+			prov.opgp = r.opgp;
 			return prov;
 		} catch (err) {
 			console.log("Initialization error for WebCrypto provider " + name + ": " + err);
@@ -124,7 +125,10 @@ function openpgp_crypto_exportKey(format, key) {
 			}
 		},
 		function (e) {
-			res._onerror(e.target.result);
+			if (e == null || e.target == null)
+				res._onerror(e);
+			else
+				res._onerror(e.target.result);
 		});
 	return res;
 }
@@ -133,7 +137,7 @@ function openpgp_webcrypto_pair2webcrypto_store(pair)
 {
 	var p2wc;
 
-	p2wc = new openpgp_pair2webcrypto(pair.fingerprint, openpgp_webcrypto.name);
+	p2wc = new openpgp_pair2webcrypto(pair.id, pair.publicKey.opgp.provider.name);
 
 	var have = false;
 	if (pair.publicKey.name != null)
@@ -149,6 +153,14 @@ function openpgp_webcrypto_pair2webcrypto_store(pair)
 	} else {
 		pair.pair2webcrypto = null;
 	}
+}
+
+function openpgp_webcrypto_pair2webcrypto_fetch(id)
+{
+	var js = window.localStorage['openpgp.webcrypto.pair.' + id];
+	if (js == null)
+		return null;
+	return JSON.parse(js);
 }
 
 function openpgp_webcrypto_tag(key, numBits, provider)
@@ -170,11 +182,15 @@ function openpgp_webcrypto_tag_pair(pair, numBits)
 	openpgp_webcrypto_tag(pair.publicKey, numBits);
 }
 
+function openpgp_crypto_dateToTimePacket(d)
+{
+	d = d.getTime()/1000;
+	return String.fromCharCode(Math.floor(d/0x1000000%0x100)) + String.fromCharCode(Math.floor(d/0x10000%0x100)) + String.fromCharCode(Math.floor(d/0x100%0x100)) + String.fromCharCode(Math.floor(d%0x100));
+}
+
 function openpgp_crypto_generateKeyPair(keyType, numBits, symmetricEncryptionAlgorithm)
 {
-	var d = new Date();
-	d = d.getTime()/1000;
-	var timePacket = String.fromCharCode(Math.floor(d/0x1000000%0x100)) + String.fromCharCode(Math.floor(d/0x10000%0x100)) + String.fromCharCode(Math.floor(d/0x100%0x100)) + String.fromCharCode(Math.floor(d%0x100));
+	var timePacket = openpgp_crypto_dateToTimePacket(new Date());
 
 	var res = new openpgp_promise();
 	var algoSign, algoEnc;
@@ -365,4 +381,157 @@ function openpgp_webcrypto_get_all_keys(provider)
 		return res;
 	}
 	/* NOTREACHED */
+}
+
+function openpgp_webcrypto_matchKey(provider, pubkey)
+{
+	var res = new openpgp_promise();
+	try {
+		var sk = pubkey[0].getSigningKey();
+		if (sk == null) {
+			res._onerror({ target: { result: 'Invalid OpenPGP public key packet passed to openpgp_webcrypto_matchKey' } });
+			return res;
+		}
+
+		var algo;
+		var data = {};
+		switch (sk.publicKeyAlgorithm) {
+			case 1:
+				algo = 'RSASSA-PKCS1-v1_5';
+				data['modulus'] = sk.MPIs[0];
+				data['exponent'] = sk.MPIs[1];
+				break;
+
+			default:
+				res._onerror({ target: { result: 'Unsupported OpenPGP public key algorithm: ' + sk.publicKeyAlgorithm } });
+				return res;
+		}
+
+		var prov = openpgp_webcrypto_provider_get_first([provider]);
+		if (prov == null) {
+			res._onerror({ target: { result: 'OpenPGP.js WebCrypto provider ' + provider + ' failed to initialize' } });
+			return res;
+		}
+
+		var keys, kidx, kname, keyPair;
+
+		function process_keys(r) {
+			keys = r.target.result;
+			kidx = 0;
+			next_key();
+		}
+
+		function pass_error(e) {
+			if (e == null || e.target == null)
+				res._onerror({ target: { result: e } });
+			else
+				res._onerror(e);
+		}
+
+		function next_key() {
+			if (kidx == keys.length) {
+				res._onerror({ target: { result: 'Could not find a matching key' } });
+				return;
+			}
+
+			try {
+				var k = keys[kidx++];
+				var kname = k.name + " / " + k.id;
+
+				if (k.algorithm.name != algo || k.type != 'public' || !k.extractable) {
+					next_key();
+					return;
+				}
+				openpgp_crypto_exportKey('spki', k).then(
+				    check_exported_key, pass_error);
+			} catch (err) {
+				console.log(err.toString()); console.log(err); console.log(err.stack);
+				res._onerror({ target: { result: "Failed to match the key: " + err } });
+				return res;
+			}
+		}
+
+		function private_stub_written(r) {
+			try {
+				var priv = r;/*.target.result;*/
+				console.log("RDBG got a private key:"); console.log(priv);
+				console.log("RDBG - header " + priv.header.length + " body " + priv.body.length + " string " + priv.string.length);
+				console.log("RDBG - header: " + util.hexstrdump(priv.header));
+				console.log("RDBG - body: " + util.hexstrdump(priv.body));
+				console.log("RDBG - string: " + util.hexstrdump(priv.string));
+				keyPair.privateKeyArmored = openpgp_encoding_armor(5, priv.string + sk.data.substring(pubkey[0].publicKeyPacket.data.length));
+				res._oncomplete({ target: { result: keyPair } });
+			} catch (err) {
+				console.log(err.toString()); console.log(err); console.log(err.stack);
+				res._onerror({ target: { result: "Could not complete creating the imported WebCrypto keypair: " + err } });
+			}
+		}
+
+		function check_exported_key(exp) {
+			try {
+				var k = keys[kidx - 1];
+				var kname = k.name + " / " + k.id;
+
+				function tlz(s) {
+					var len = s.length;
+					for (var i = 0; i < len; i++)
+						if (s[i] != '0')
+							break;
+					if (i == 0)
+						return s;
+					else
+						return s.substring(i);
+				}
+
+				var rsa = openpgp.openpgp_spki_to_rsa(exp);
+				var keyStr = tlz(util.hexidump(rsa.key)), expStr = tlz(util.hexidump(rsa.exp));
+				var rsaObj = new RSA();
+				var publicRSAKey = new rsaObj.keyObject();
+				publicRSAKey.n = new BigInteger(keyStr, 16);
+				publicRSAKey.ee = new BigInteger(expStr, 16);
+
+				/* AAAAARGH! */
+				var nStr = tlz(util.hexidump(sk.MPIs[0].toBigInteger().toByteArray()));
+				var eStr = tlz(util.hexidump(sk.MPIs[1].toBigInteger().toByteArray()));
+				if (nStr != keyStr || eStr != expStr) {
+					next_key();
+					return;
+				}
+
+				var privKey = k.opgp.provider.opgp.getMatchingPrivateKey(k, keys);
+				if (privKey == null) {
+					res._onerror({ target: { result: 'Could not fetch the matching private key' } });
+					return;
+				}
+				console.log("RDBG found a matching private key:"); console.log(privKey);
+
+				keyPair = new openpgp_keypair();
+				keyPair.id = util.hexstrdump(sk.getFingerprint());
+				keyPair.publicKey = k;
+				keyPair.privateKey = privKey;
+				keyPair.timePacket = openpgp_crypto_dateToTimePacket(sk.creationTime);
+				var pub = new openpgp_packet_keymaterial().write_public_key(sk.publicKeyAlgorithm, publicRSAKey, keyPair.timePacket);
+				console.log("RDBG got a public key:"); console.log(pub);
+				console.log("RDBG - header " + pub.header.length + " body " + pub.body.length + " string " + pub.string.length);
+				console.log("RDBG - header: " + util.hexstrdump(pub.header));
+				console.log("RDBG - body: " + util.hexstrdump(pub.body));
+				console.log("RDBG - string: " + util.hexstrdump(pub.string));
+				keyPair.publicKeyArmored = openpgp_encoding_armor(4, pubkey[0].data);
+				keyPair.symmetricEncryptionAlgorithm = sk.symmetricEncryptionAlgorithm;
+				new openpgp_packet_keymaterial().write_private_key_webcrypto_stub(sk.publicKeyAlgorithm, publicRSAKey, privKey, keyPair.timePacket).then(
+				    private_stub_written, pass_error);
+			} catch (err) {
+				console.log(err.toString()); console.log(err); console.log(err.stack);
+				res._onerror({ target: { result: "Failed to match the key: " + err } });
+				return res;
+			}
+		}
+
+		prov.cryptokeys.getKeyByName(null).then(process_keys, pass_error);
+	} catch (err) {
+		console.log(err.toString()); console.log(err); console.log(err.stack);
+		res._onerror({ target: { result: "Failed to match the key: " + err } });
+		return res;
+	}
+	return res;
 }

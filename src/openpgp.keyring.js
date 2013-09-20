@@ -220,18 +220,18 @@ function openpgp_keyring() {
 		var res = new openpgp_promise();
 
 		if (pair.publicKeyArmored == null) {
-			res._onerror('No armored public key passed to importWebCryptoKeyPair()');
+			res._onerror({ target: { result: 'No armored public key passed to importWebCryptoKeyPair()' } });
 			return res;
 		} else if (pair.privateKeyArmored == null) {
-			res._onerror('No armored public key passed to importWebCryptoKeyPair()');
+			res._onerror({ target: { result: 'No armored private key passed to importWebCryptoKeyPair()' } });
 			return res;
 		}
 		if (!this.importPublicKey(pair.publicKeyArmored)) {
-			res._onerror('Failed to import the public key into the keyring');
+			res._onerror({ target: { result: 'Failed to import the public key into the keyring' } });
 			return res;
 		}
 		if (!this.importPrivateKey(pair.privateKeyArmored, '', !pair.privateKey.extractable))
-			res._onerror('Failed to import the private key into the keyring');
+			res._onerror({ target: { result: 'Failed to import the private key into the keyring' } });
 		else
 			res._oncomplete(true);
 		return res;

@@ -43,6 +43,7 @@
 
   <p>
     <a href="#sect_listkeys">List keys</a> |
+    <a href="#sect_importpub">Import a public key</a> |
     <a href="#sect_genkey">Generate a key</a> |
     <a href="#sect_sign">Sign some text</a>
   </p>
@@ -77,6 +78,7 @@
 
   <p>
     <a href="#sect_listkeys">List keys</a> |
+    <a href="#sect_importpub">Import a public key</a> |
     <a href="#sect_genkey">Generate a key</a> |
     <a href="#sect_sign">Sign some text</a>
   </p>
@@ -96,6 +98,33 @@
 
   <p>
     <a href="#sect_listkeys">List keys</a> |
+    <a href="#sect_importpub">Import a public key</a> |
+    <a href="#sect_genkey">Generate a key</a> |
+    <a href="#sect_sign">Sign some text</a>
+  </p>
+
+  <h2><a id="sect_importpub">Import a public key</a></h2>
+
+  <form action="importpub" method="POST" name="importpubform" id="importpubform" onsubmit="return doimportpub()">
+    <p>Import a public key with a secret key provisioned by
+      <input type="radio" name="importpubprov" id="importpubprov_cryptostick" value="cryptostick" checked="checked" />
+      <label for="importpubprov_cryptostick">CryptoStick</label>
+      <input type="radio" name="importpubprov" id="importpubprov_domcrypt" value="domcrypt" />
+      <label for="importpubprov_domcrypt">DOMCrypt</label>
+      <input type="radio" name="importpubprov" id="importpubprov_owncrypto" value="owncrypto" />
+      <label for="importpubprov_owncrypto">owncrypto</label>
+      <input type="radio" name="importpubprov" id="importpubprov_nfwebcrypto" value="nfwebcrypto" />
+      <label for="importpubprov_nfwebcrypto">NfWebCrypto</label>
+      </p>
+
+    <p><input type="submit" id="importkey" value="Import the public key" /></p>
+
+    <textarea rows="25" cols="100" name="importkeypub" id="importkeypub">&nbsp;</textarea>
+  </form>
+
+  <p>
+    <a href="#sect_listkeys">List keys</a> |
+    <a href="#sect_importpub">Import a public key</a> |
     <a href="#sect_genkey">Generate a key</a> |
     <a href="#sect_sign">Sign some text</a>
   </p>
@@ -113,6 +142,7 @@
 
   <p>
     <a href="#sect_listkeys">List keys</a> |
+    <a href="#sect_importpub">Import a public key</a> |
     <a href="#sect_genkey">Generate a key</a> |
     <a href="#sect_sign">Sign some text</a>
   </p>

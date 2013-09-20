@@ -55,6 +55,14 @@ function openpgp_cryptostick_init(window)
 			return res;
 		}
 	};
+	that.opgp = {
+		getMatchingPrivateKey: function (k, keys) {
+			for (var i = 0; i < keys.length; i++)
+				if (k.name == keys[i].name && i < keys.length - 1)
+					return keys[i + 1];
+			return null;
+		}
+	};
 	return that;
 }
 

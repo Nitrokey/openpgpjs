@@ -458,6 +458,7 @@ function _openpgp () {
 		};
 		return res;
 	}
+	this.openpgp_spki_to_rsa = openpgp_spki_to_rsa;
 
 	/**
 	 * Extract a RSA keypair from a PKCS#8 DER sequence.

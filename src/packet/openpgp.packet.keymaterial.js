@@ -350,7 +350,9 @@ function openpgp_packet_keymaterial() {
 			if (this.webCryptoPair.provider != provider)
 				throw 'read_priv_key(): trying to store a private WebCrypto key from provider "' + provider + '" into an already-initialized openpgp_pair2webcrypto object with provider "' + this.webCryptoPair.provider + '"';
 		} else {
-			this.webCryptoPair = new openpgp_pair2webcrypto(null, provider);
+			this.webCryptoPair = new openpgp_pair2webcrypto(
+			    util.hexstrdump(this.publicKey.getFingerprint()),
+			    provider);
 		}
 		this.webCryptoPair.webKeys['private'] = new openpgp_pair2webcrypto_key('private', name, id);
 	    } else if (this.s2kUsageConventions != 0 && this.s2k.type == 1001) {

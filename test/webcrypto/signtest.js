@@ -214,3 +214,85 @@ function dosign()
 	}
 	return false;
 }
+
+function doimportpub()
+{
+	try {
+		initialize_openpgp();
+
+		var prov = $('input[name=listprov]:checked', '#listkeysform').val();
+		var pubarmored = $('textarea#importkeypub').val();
+
+		var pk;
+		try {
+			pk = openpgp.read_publicKey(pubarmored);
+			if (pk == null)
+				throw 'No public key at all';
+		} catch (err) {
+			console.log(err.toString()); console.log(err); console.log(err.stack);
+			window.alert("Please paste a valid public key into the text area below");
+			return false;
+		}
+		console.log("RDBG got a public key:"); console.log(pk);
+		console.log("RDBG data.len: " + pk[0].data.length);
+		console.log("RDBG publicKeyPacket.data.len: " + pk[0].publicKeyPacket.data.length);
+
+		openpgp_webcrypto_matchKey(prov, pk).then(
+			function (r) {
+				try {
+					var pair = r.target.result;
+
+					console.log("RDBG got a WebCrypto pair:"); console.log(pair);
+					/* No need for this for the present, I think.
+					var existing = openpgp_webcrypto_pair2webcrypto_fetch(pair.id);
+					if (existing != null) {
+						window.alert("This key is already known to OpenPGP.js from provider " + existing.webProvider);
+						return;
+					}
+					*/
+					openpgp_webcrypto_pair2webcrypto_store(pair);
+
+					for (i = 0; i < openpgp.keyring.publicKeys.length; i++) {
+						var fp = util.hexstrdump(
+						    openpgp.keyring.publicKeys[i].obj.getFingerprint());
+						if (fp != pair.id)
+							continue;
+						console.log("About to remove public key " + fp + " (position " + i + ") from the keyring");
+						openpgp.keyring.removePublicKey(i);
+						i--;
+					}
+					for (i = 0; i < openpgp.keyring.privateKeys.length; i++) {
+						var fp = util.hexstrdump(
+						    openpgp.keyring.privateKeys[i].obj.getFingerprint());
+						if (fp != pair.id)
+							continue;
+						console.log("About to remove private key " + fp + " (position " + i + ") from the keyring");
+						openpgp.keyring.removePrivateKey(i);
+						i--;
+					}
+					openpgp.keyring.importWebCryptoKeyPair(pair).then(
+						function (r) {
+							window.alert("Key imported!");
+						},
+						function (e) {
+							window.alert(e.target.result);
+						}
+					);
+					openpgp.keyring.store();
+				} catch (err) {
+					console.log(err.toString()); console.log(err); console.log(err.stack);
+					window.alert("Error processing the keypair: " + err);
+				}
+			},
+
+			function (e) {
+				window.alert("This key does not seem to be provisioned by " + prov + ": " + e.target.result);
+			}
+		);
+	} catch (err) {
+		console.log(err);
+		console.log(err.stack);
+		window.alert("doimportpub() error: " + err);
+	}
+	return false;
+}
