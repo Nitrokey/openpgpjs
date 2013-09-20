@@ -52,7 +52,6 @@ function openpgp_cryptostick_init(window)
 			return res;
 		}
 	};
-	window.cryptostick.cryptokeys;
 	return that;
 }
 
