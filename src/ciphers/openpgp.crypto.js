@@ -539,6 +539,7 @@ function openpgp_crypto_pair_from_RSA(key, numBits, algo, privKeyUsage, publicKe
 			numBits: numBits
 		}
 	};
+	openpgp_webcrypto_tag_pair(pair, numBits, "owncrypto");
 	return pair;
 }
 
