@@ -329,7 +329,7 @@ var Util = function() {
 
 	function cloneChromeObject(obj) {
 		/* TODO: maybe we should dive into arrays and hashes */
-		if (typeof(obj) != 'object')
+		if (obj == null || typeof(obj) != 'object')
 			return obj;
 		var res = {};
 		for (var k in obj) {
