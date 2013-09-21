@@ -337,11 +337,52 @@ function dokeyring_weball()
 	return false;
 }
 
+function dokeyring_select()
+{
+	try {
+		initialize_openpgp();
+
+		var id = $('#keyringselkey').val();
+		id = id.trim();
+		if (id == "") {
+			window.alert("Please provide a key ID or fingerprint");
+			return false;
+		}
+		openpgp.keyring.getWebCryptoPairById(id).then(
+			function (r) {
+				var pair = r.target.result;
+
+				if (pair == null) {
+					window.alert("Could not fetch key " + id);
+					return;
+				}
+				generatedKeypair = pair;
+				$('textarea#genkeypub').val(pair.publicKeyArmored);
+				if (pair.privateKeyArmored != null)
+					$('textarea#genkeypriv').val(pair.privateKeyArmored);
+				else
+					$('textarea#genkeypriv').val('Private key not extractable');
+				window.alert("Looks like we fetched a key!");
+			},
+			function (e) {
+				window.alert("Could not fetch key " + id +
+				    ": " + e.target.result);
+			}
+		);
+	} catch (err) {
+		console.log(err.toString()); console.log(err); console.log(err.stack);
+		window.alert("dokeyring_select() error: " + err);
+	}
+	return false;
+}
+
 function dokeyring()
 {
 	try {
 		if (submitButton == "weball") {
 			return dokeyring_weball();
+		} else if (submitButton == "select") {
+			return dokeyring_select();
 		} else if (submitButton != "listall") {
 			window.alert("Internal signtest error: dokeyring() invoked with an unexpected submitButton value: " + submitButton);
 			return false;

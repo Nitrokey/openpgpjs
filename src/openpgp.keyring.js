@@ -237,6 +237,91 @@ function openpgp_keyring() {
 		return res;
 	}
 	this.importWebCryptoKeyPair = importWebCryptoKeyPair;
+
+	function getWebCryptoPairById(id) {
+		var res = new openpgp_promise();
+
+		id = id.toUpperCase();
+
+		var privKey;
+		for (var i = 0; i < this.privateKeys.length; i++) {
+			var k = this.privateKeys[i];
+			if (id == util.hexstrdump(k.keyId).toUpperCase() ||
+			    id == util.hexstrdump(k.obj.getFingerprint()).toUpperCase()) {
+				privKey = k;
+				break;
+			}
+		}
+		if (privKey == null) {
+			res._oncomplete({ target: { result: null } });
+			return res;
+		}
+
+		var pubKey;
+		for (var i = 0; i < this.publicKeys.length; i++) {
+			var k = this.publicKeys[i];
+			if (id == util.hexstrdump(k.keyId).toUpperCase() ||
+			    id == util.hexstrdump(k.obj.getFingerprint()).toUpperCase()) {
+				pubKey = k;
+				break;
+			}
+		}
+		if (pubKey == null) {
+			res._oncomplete({ target: { result: null } });
+			return res;
+		}
+
+		var pair = privKey.obj.privateKeyPacket.webCryptoPair;
+		if (pair == null) {
+			res._oncomplete({ target: { result: null } });
+			return res;
+		}
+		var wpair = openpgp_webcrypto_pair2webcrypto_fetch(pair.keyId);
+		if (wpair == null || wpair.webKeys['public'] == null) {
+			res._oncomplete({ target: { result: null } });
+			return res;
+		}
+
+		var resPair = new openpgp_keypair();
+		resPair.id = id;
+		resPair.privateKeyArmored = privKey.armored;
+		resPair.publicKeyArmored = pubKey.armored;
+		resPair.timePacket = openpgp_crypto_dateToTimePacket(
+		    pubKey.obj.publicKeyPacket.creationTime);
+
+		function exp_priv_done(r) {
+			if (r.target.result == null) {
+				res._oncomplete({ target: { result: null } });
+				return;
+			}
+			resPair.privateKey = r.target.result;
+
+			res._oncomplete({ target: { result: resPair } });
+		}
+
+		function exp_pub_done(r) {
+			if (r.target.result == null) {
+				res._oncomplete({ target: { result: null } });
+				return;
+			}
+			resPair.publicKey = r.target.result;
+
+			openpgp_webcrypto_get_key(wpair.webProvider,
+			    wpair.webKeys['private'].name,
+			    wpair.webKeys['private'].id).then(exp_priv_done,
+			    pass_error);
+		}
+
+		function pass_error(e) {
+			res._onerror(e);
+		}
+
+		openpgp_webcrypto_get_key(wpair.webProvider,
+		    wpair.webKeys['public'].name,
+		    wpair.webKeys['public'].id).then(exp_pub_done, pass_error);
+		return res;
+	}
+	this.getWebCryptoPairById = getWebCryptoPairById;
 	
 	/**
 	 * returns the openpgp_msg_privatekey representation of the public key at public key ring index  
