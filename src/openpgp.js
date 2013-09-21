@@ -422,8 +422,7 @@ function _openpgp () {
 		if (typeof(publickey) == "string" || publickey instanceof String)
 		{
 			var pk = openpgp_encoding_deArmor(publickey).openpgp;
-			publicKeyMat = new openpgp_packet_keymaterial();
-			publicKeyMat.read_pub_key(pk, 2, pk.length - 2);
+			publicKeyMat = new openpgp_packet.read_packet(pk, 0, pk.length);
 		} else {
 			throw 'FIXME: support WebCrypto Key objects directly here';
 		}
