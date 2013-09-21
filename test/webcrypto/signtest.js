@@ -296,3 +296,89 @@ function doimportpub()
 	}
 	return false;
 }
+
+function dokeyring_weball()
+{
+	try {
+		initialize_openpgp();
+
+		var arr = openpgp_webcrypto_pair2webcrypto_fetch_all();
+		s = "";
+		for (var name in arr) {
+			var wpair = arr[name];
+
+			s += "WebCrypto pair " + name + ": provider " + wpair.webProvider +
+			    " id " + wpair.keyId + "\n";
+			for (var ktype in wpair.webKeys) {
+				var wk = wpair.webKeys[ktype];
+				s += "- " + ktype + ": type " + wk.type +
+				    " name " + wk.name +
+				    " id " + wk.id +
+				    "\n";
+			}
+			s += "\n";
+		}
+
+		$('textarea#keyringkeys').val(s);
+	} catch (err) {
+		console.log(err.toString()); console.log(err); console.log(err.stack);
+		window.alert("dokeyring_weball() error: " + err);
+	}
+	return false;
+}
+
+function dokeyring()
+{
+	try {
+		if (submitButton == "weball") {
+			return dokeyring_weball();
+		} else if (submitButton != "listall") {
+			window.alert("Internal signtest error: dokeyring() invoked with an unexpected submitButton value: " + submitButton);
+			return false;
+		}
+		initialize_openpgp();
+
+		var keys = openpgp.keyring.privateKeys;
+		var s = "Private keyring: " + keys.length + " key" +
+		    (keys.length != 1? "s": "") + "\n";
+		for (var i = 0; i < keys.length; i++) {
+			console.log(keys[i]);
+			s += "Key " + util.hexstrdump(keys[i].keyId) + "\n";
+			var pair = keys[i].obj.privateKeyPacket.webCryptoPair;
+			if (pair == null) {
+				s += "- no WebCrypto info\n\n";
+				continue;
+			}
+			s += "- provider " + pair.webProvider +
+			    " id " + pair.keyId + "\n";
+			for (var ktype in pair.webKeys) {
+				var wk = pair.webKeys[ktype];
+				s += "  - " + ktype + ": type " + wk.type +
+				    " name " + wk.name +
+				    " id " + wk.id +
+				    "\n";
+			}
+
+			var wpair = openpgp_webcrypto_pair2webcrypto_fetch(pair.keyId);
+			if (wpair == null) {
+				s += "- no corresponding WebCrypto entry?!\n\n";
+				continue;
+			}
+			s += "- corresponding provider " + wpair.webProvider +
+			    " id " + wpair.keyId + "\n";
+			for (var ktype in wpair.webKeys) {
+				var wk = wpair.webKeys[ktype];
+				s += "  - " + ktype + ": type " + wk.type +
+				    " name " + wk.name +
+				    " id " + wk.id +
+				    "\n";
+			}
+			s += "\n";
+		}
+		$('textarea#keyringkeys').val(s);
+	} catch (err) {
+		console.log(err.toString()); console.log(err); console.log(err.stack);
+		window.alert("dokeyring() error: " + err);
+	}
+	return false;
+}

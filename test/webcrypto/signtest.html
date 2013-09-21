@@ -45,6 +45,7 @@
     <a href="#sect_listkeys">List keys</a> |
     <a href="#sect_importpub">Import a public key</a> |
     <a href="#sect_genkey">Generate a key</a> |
+    <a href="#sect_keyring">List keys in the keyring</a> |
     <a href="#sect_sign">Sign some text</a>
   </p>
 
@@ -80,6 +81,7 @@
     <a href="#sect_listkeys">List keys</a> |
     <a href="#sect_importpub">Import a public key</a> |
     <a href="#sect_genkey">Generate a key</a> |
+    <a href="#sect_keyring">List keys in the keyring</a> |
     <a href="#sect_sign">Sign some text</a>
   </p>
 
@@ -100,6 +102,7 @@
     <a href="#sect_listkeys">List keys</a> |
     <a href="#sect_importpub">Import a public key</a> |
     <a href="#sect_genkey">Generate a key</a> |
+    <a href="#sect_keyring">List keys in the keyring</a> |
     <a href="#sect_sign">Sign some text</a>
   </p>
 
@@ -126,6 +129,26 @@
     <a href="#sect_listkeys">List keys</a> |
     <a href="#sect_importpub">Import a public key</a> |
     <a href="#sect_genkey">Generate a key</a> |
+    <a href="#sect_keyring">List keys in the keyring</a> |
+    <a href="#sect_sign">Sign some text</a>
+  </p>
+
+  <h2><a id="sect_keyring">List keys in the keyring</a></h2>
+
+  <form action="keyring" method="POST" name="keyringform" id="keyringform" onsubmit="return dokeyring()">
+    <p>
+      <input type="submit" id="keyringlistall" value="List the private keys in the keyring" onclick="submitButton='listall'" />
+      <br />
+      <input type="submit" id="keyringweball" value="List the private key WebCrypto correspondence entries" onclick="submitButton='weball'" />
+      </p>
+    <textarea rows="25" cols="100" name="keyringkeys" id="keyringkeys">&nbsp;</textarea>
+  </form>
+
+  <p>
+    <a href="#sect_listkeys">List keys</a> |
+    <a href="#sect_importpub">Import a public key</a> |
+    <a href="#sect_genkey">Generate a key</a> |
+    <a href="#sect_keyring">List keys in the keyring</a> |
     <a href="#sect_sign">Sign some text</a>
   </p>
 
@@ -144,6 +167,7 @@
     <a href="#sect_listkeys">List keys</a> |
     <a href="#sect_importpub">Import a public key</a> |
     <a href="#sect_genkey">Generate a key</a> |
+    <a href="#sect_keyring">List keys in the keyring</a> |
     <a href="#sect_sign">Sign some text</a>
   </p>
 </body>

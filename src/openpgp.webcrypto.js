@@ -163,6 +163,20 @@ function openpgp_webcrypto_pair2webcrypto_fetch(id)
 	return JSON.parse(js);
 }
 
+var _openpgp_webcrypto_fetchAllPairs_pat = new RegExp('^openpgp\.webcrypto\.pair\.([a-fA-F0-9]+)$');
+
+function openpgp_webcrypto_pair2webcrypto_fetch_all()
+{
+	var arr = [];
+	for (var name in window.localStorage) {
+		var m = name.match(_openpgp_webcrypto_fetchAllPairs_pat);
+		if (!m)
+			continue;
+		arr[m[1]] = JSON.parse(window.localStorage[name]);
+	}
+	return arr;
+}
+
 function openpgp_webcrypto_tag(key, numBits, provider)
 {
 	if (key.opgp == null)
