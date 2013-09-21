@@ -186,14 +186,14 @@ function openpgp_webcrypto_tag(key, numBits, provider)
 
 	var prov = null;
 	if (provider != null)
-		prov = openpgp_webcrypto_provider_get_first(provider);
+		prov = openpgp_webcrypto_provider_get_first([provider]);
 	key.opgp.provider = prov != null? prov: openpgp_webcrypto;
 }
 
-function openpgp_webcrypto_tag_pair(pair, numBits)
+function openpgp_webcrypto_tag_pair(pair, numBits, provider)
 {
-	openpgp_webcrypto_tag(pair.privateKey, numBits);
-	openpgp_webcrypto_tag(pair.publicKey, numBits);
+	openpgp_webcrypto_tag(pair.privateKey, numBits, provider);
+	openpgp_webcrypto_tag(pair.publicKey, numBits, provider);
 }
 
 function openpgp_crypto_dateToTimePacket(d)
