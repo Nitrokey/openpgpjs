@@ -323,6 +323,8 @@ function openpgp_packet_keymaterial() {
 		var mpi = new openpgp_type_mpi();
 
 		function getMPIString() {
+			if (mypos >= len)
+			    return null;
 			if (mpi.read(input, mypos, len - mypos) == null)
 			    return null;
 			mypos += mpi.packetLength;
