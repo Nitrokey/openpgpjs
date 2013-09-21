@@ -219,6 +219,7 @@ function dosign()
 
 		openpgp.write_signed_message(generatedKeypair.privateKey, generatedKeypair.publicKeyArmored, $('textarea#signplain').val()).then(sign_complete, sign_error);
 	} catch (err) {
+		console.log(err.toString()); console.log(err); console.log(err.stack);
 		window.alert("dosign() error: " + err);
 	}
 	return false;
