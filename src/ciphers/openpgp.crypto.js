@@ -613,7 +613,7 @@ function openpgp_crypto_digKeyPairFromJSON_own(val, kname, id) {
 
 			pair = openpgp_crypto_pair_from_RSA(key, numBits, algo, privKeyUsage, pubKeyUsage);
 			pair.privateKey.extractable = res.privExtractable;
-			pair.publicKey.extractale = res.pubExtractable;
+			pair.publicKey.extractable = res.pubExtractable;
 			break;
 
 		default:
