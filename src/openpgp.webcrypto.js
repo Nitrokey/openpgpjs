@@ -361,7 +361,7 @@ function openpgp_webcrypto_get_key(provider, name, id)
 		function (r) {
 			var keys = r.target.result;
 			if (keys == null) {
-				res._onerror({ target: { result: 'Key "' + name + '" / ' + id + ' not present in the OpenPGP.js WebCrypto provider ' + provider } });
+				res._oncomplete({ target: { result: null } });
 				return;
 			}
 			for (var i = 0; i < keys.length; i++)
@@ -370,7 +370,7 @@ function openpgp_webcrypto_get_key(provider, name, id)
 					res._oncomplete({ target: { result: keys[i] } });
 					return;
 				}
-			res._onerror({ target: { result: 'Key "' + name + '" / ' + id + ' not present in the OpenPGP.js WebCrypto provider ' + provider } });
+			res._oncomplete({ target: { result: null } });
 		},
 		function (e) {
 			res._onerror(e);

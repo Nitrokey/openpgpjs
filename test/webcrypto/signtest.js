@@ -104,6 +104,10 @@ function dolistkeys()
 		} else {
 			openpgp_webcrypto_get_key(prov, name, id).then(
 				function (r) {
+					if (r.target.result == null) {
+						show_keys_start(0);
+						return;
+					}
 					show_keys_start(1);
 					show_single_key(r.target.result);
 					show_keys_end();
@@ -173,7 +177,12 @@ function dofetchkey()
 		}
 
 		function gotKey(r) {
-			foundKey(r.target.result);
+			if (r.target.result == null) {
+				console.log("Could not fetch private key " + idx);
+				nextKey();
+			} else {
+				foundKey(r.target.result);
+			}
 		}
 
 		function foundKey(key) {
