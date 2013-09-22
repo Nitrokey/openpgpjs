@@ -74,7 +74,7 @@ function dolistkeys()
 			    "- algorithm " + k.algorithm.name + "\n" +
 			    "- type " + k.type + "\n" +
 			    "- extractable " + k.extractable + "\n" +
-			    "- keyUsage " + k.keyUsage.join(", ") + "\n" +
+			    /*"- keyUsage " + k.keyUsage.join(", ") + "\n" +*/
 			    "- cs_pkcs11id " + k.cs_pkcs11id + "\n" +
 			    "\n";
 			$('textarea#listkeysdata').val($('textarea#listkeysdata').val() + s);
