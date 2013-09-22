@@ -71,6 +71,9 @@ function openpgp_encoding_deArmor(text) {
 				.split("\n=")[0]),
 			type: type
 		};
+		/* RFC 4880, section 7.1: strip the final line break */
+		if (result.text[result.text.length - 1] == "\n")
+			result.text = result.text.substring(0, result.text.length - 1);
 
 		if (verifyCheckSum(result.openpgp, splittedtext[4]
 			.split("\n\n")[1]
