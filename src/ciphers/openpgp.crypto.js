@@ -60,7 +60,11 @@ function openpgp_crypto_asymetricEncrypt(algo, publicMPIs, data) {
  * @return {BigInteger} returns a big integer containing the decrypted data; otherwise null
  */
 
-function openpgp_crypto_asymetricDecrypt(algo, publicMPIs, secretMPIs, dataMPIs) {
+function openpgp_crypto_asymmetricDecrypt_own(algo, publicMPIs, secretMPIs, dataMPIs) {
+	var res = new openpgp_promise();
+	res._onerror({ target: { result: 'FIXME: openpgp_crypto_asymmetricDecrypt_own() not implemented yet' } });
+	return;
+
 	switch(algo) {
 	case 1: // RSA (Encrypt or Sign) [HAC]  
 	case 2: // RSA Encrypt-Only [HAC]

@@ -188,10 +188,13 @@ var Util = function() {
 	 * style attribute where the debug message is HTMLencoded in. 
 	 */
 	this.print_debug = function(str) {
+		/*console.log("OpenPGP.js: " + str);*/
+		/*
 		if (openpgp.config.debug) {
 			str = openpgp_encoding_html_encode(str);
 			showMessages("<tt><p style=\"background-color: #ffffff; width: 652px; word-break: break-word; padding: 5px; border-bottom: 1px solid black;\">"+str.replace(/\n/g,"<br>")+"</p></tt>");
 		}
+		*/
 	};
 	
 	/**
@@ -207,11 +210,13 @@ var Util = function() {
 	 * style attribute where the debug message is HTMLencoded in. 
 	 */
 	this.print_debug_hexstr_dump = function(str,strToHex) {
+		/*
 		if (openpgp.config.debug) {
 			str = str + this.hexstrdump(strToHex);
 			str = openpgp_encoding_html_encode(str);
 			showMessages("<tt><p style=\"background-color: #ffffff; width: 652px; word-break: break-word; padding: 5px; border-bottom: 1px solid black;\">"+str.replace(/\n/g,"<br>")+"</p></tt>");
 		}
+		*/
 	};
 	
 	/**
@@ -224,8 +229,11 @@ var Util = function() {
 	 * containing the HTML encoded error message
 	 */
 	this.print_error = function(str) {
+		console.log("OpenPGP.js error: " + str);
+		/*
 		str = openpgp_encoding_html_encode(str);
 		showMessages("<p style=\"font-size: 80%; background-color: #FF8888; margin:0; width: 652px; word-break: break-word; padding: 5px; border-bottom: 1px solid black;\"><span style=\"color: #888;\"><b>ERROR:</b></span>	"+str.replace(/\n/g,"<br>")+"</p>");
+		*/
 	};
 	
 	/**
@@ -238,13 +246,19 @@ var Util = function() {
 	 * containing the HTML encoded info message
 	 */
 	this.print_info = function(str) {
+		console.log("OpenPGP.js info: " + str);
+		/*
 		str = openpgp_encoding_html_encode(str);
 		showMessages("<p style=\"font-size: 80%; background-color: #88FF88; margin:0; width: 652px; word-break: break-word; padding: 5px; border-bottom: 1px solid black;\"><span style=\"color: #888;\"><b>INFO:</b></span>	"+str.replace(/\n/g,"<br>")+"</p>");
+		*/
 	};
 	
 	this.print_warning = function(str) {
+		console.log("OpenPGP.js warning: " + str);
+		/*
 		str = openpgp_encoding_html_encode(str);
 		showMessages("<p style=\"font-size: 80%; background-color: #FFAA88; margin:0; width: 652px; word-break: break-word; padding: 5px; border-bottom: 1px solid black;\"><span style=\"color: #888;\"><b>WARNING:</b></span>	"+str.replace(/\n/g,"<br>")+"</p>");
+		*/
 	};
 	
 	this.getLeftNBits = function (string, bitcount) {

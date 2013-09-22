@@ -164,24 +164,49 @@ function openpgp_packet_encryptedsessionkey() {
 	 * @return {String} The unencrypted session key
 	 */
 	function decrypt(msg, key) {
-		if (this.tagType == 1) {
-			var result = openpgp_crypto_asymetricDecrypt(
-					this.publicKeyAlgorithmUsed, key.publicKey.MPIs,
-					key.secMPIs, this.MPIs).toMPI();
-			var checksum = ((result.charCodeAt(result.length - 2) << 8) + result
-					.charCodeAt(result.length - 1));
-			var decoded = openpgp_encoding_eme_pkcs1_decode(result.substring(2, result.length - 2), key.publicKey.MPIs[0].getByteLength());
-			var sesskey = decoded.substring(1);
-			var algo = decoded.charCodeAt(0);
-			if (msg.encryptedData.tagType == 18)
-				return msg.encryptedData.decrypt(algo, sesskey);
-			else
-				return msg.encryptedData.decrypt_sym(algo, sesskey);
-		} else if (this.tagType == 3) {
-			util
-					.print_error("Symmetric encrypted sessionkey is not supported!");
-			return null;
+		var res = new openpgp_promise();
+
+		if (this.tagType == 3) {
+			res._onerror({ target: { result:
+			    "Symmetric encrypted session key is not supported" } });
+			return res;
+		} else if (this.tagType != 1) {
+			res._onerror({ target: { result:
+			    "Unsupported encrypted session key type " + this.tagType } });
+			return res;
 		}
+
+		function got_key(r) {
+			try {
+				var result = r.target.result.toMPI();
+				var checksum = ((result.charCodeAt(result.length - 2) << 8) + result
+						.charCodeAt(result.length - 1));
+				var decoded = result.substring(2, result.length - 2);
+				var sesskey = decoded.substring(1);
+				var algo = decoded.charCodeAt(0);
+				if (msg.encryptedData.tagType == 18)
+					res._oncomplete({ target: { result: msg.encryptedData.decrypt(algo, sesskey) } });
+				else
+					res._oncomplete({ target: { result: msg.encryptedData.decrypt_sym(algo, sesskey) } });
+			} catch (err) {
+				console.log(err.toString()); console.log(err); console.log(err.stack);
+				res._onerror({ target: { result: "Could not decrypt the message: esk.got_key exception: " + err } });
+			}
+		}
+
+		function pass_success(r) {
+			res._oncomplete(r);
+		}
+
+		function pass_error(e) {
+			res._onerror(e);
+		}
+
+		openpgp_crypto_asymmetricDecrypt(this.publicKeyAlgorithmUsed,
+		    key, this.MPIs).then(got_key, pass_error);
+		return res;
+			
+			
 	}
 
 	/**

@@ -293,7 +293,7 @@ function openpgp_keyring() {
 		}
 
 		var resPair = new openpgp_keypair();
-		resPair.id = id;
+		resPair.id = pair.keyId;
 		resPair.privateKeyArmored = privKey.armored;
 		resPair.publicKeyArmored = pubKey.armored;
 		resPair.timePacket = openpgp_crypto_dateToTimePacket(

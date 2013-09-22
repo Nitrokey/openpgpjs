@@ -431,7 +431,7 @@ function _openpgp () {
 		    then(sign_complete, pass_error);
 		return res;
 	}
-	
+
 	function verify_armored_message(data)
 	{
 		var res = new openpgp_promise();
@@ -458,6 +458,88 @@ function _openpgp () {
 		return packets[0].verifySignature();
 	}
 	this.verify_armored_message = verify_armored_message;
+
+	function decrypt_armored_message(data)
+	{
+		var res = new openpgp_promise();
+
+		if (data.substring(0, 11) == "-----BEGIN ") {
+			data = openpgp_encoding_deArmor(data);
+			if (!data) {
+				res._onerror({ target: { result:
+				    'Could not dearmor the OpenPGP message'
+				} });
+				return res;
+			}
+		}
+		var pkt = read_messages_dearmored(data);
+		if (pkt == null || pkt.length == 0) {
+			res._onerror({ target: { result:
+			    'Could not read OpenPGP message packets' } });
+			return res;
+		} else if (pkt.length > 1) {
+			res._onerror({ target: { result:
+			    'Cannot decrypt more than one OpenPGP message, ' +
+			    'parsed ' + pkt.length } });
+			return res;
+		}
+		pkt = pkt[0];
+
+		var missing = [], sessidx = 0, sesskey;
+		var self = this;
+
+		function next_sess_key() {
+			if (sessidx == pkt.sessionKeys.length) {
+				res._onerror({ target: { result:
+				    'Could not decrypt the OpenPGP message: '
+				    + 'private key(s) ' + missing.join(', ') +
+				    ' not found' } });
+				return;
+			}
+			sesskey = pkt.sessionKeys[sessidx++];
+			var keyId = sesskey.keyId;
+			/* Store it, then ignore it if it's OK :) */
+			missing[missing.length] = "0x" +
+			    util.hexidump(keyId.bytes);
+			self.keyring.getWebCryptoPairById(keyId.bytes).then(
+			    check_sess_key, pass_error);
+		}
+
+		function pass_error(e) {
+			res._onerror(e);
+		}
+
+		function check_sess_key(r) {
+			if (r.target.result == null) {
+				next_key();
+				return;
+			}
+			var pair = r.target.result;
+			sesskey.decrypt(pkt, pair.privateKey).then(
+				function (r) {
+					try {
+						var decrypted = r.target.result;
+						var messages = openpgp.read_messages_dearmored({text: decrypted, openpgp: decrypted});
+						var litdata = [];
+						for (var i = 0; i < messages.length; i++)
+							if (messages[i].messagePacket.tagType == 11)
+								litdata[litdata.length] = messages[i].messagePacket.data;
+						res._oncomplete({ target: { result: litdata } });
+					} catch (err) {
+						console.log(err.toString()); console.log(err); console.log(err.stack);
+						res._onerror({ target: { result: "Could not parse the decrypted OpenPGP message: " + err } });
+					}
+				},
+				function (e) {
+					res._onerror(e);
+				}
+			);
+		}
+
+		next_sess_key();
+		return res;
+	}
+	this.decrypt_armored_message = decrypt_armored_message;
 
 	/**
 	 * Extract a RSA keypair from a SPKI DER sequence.

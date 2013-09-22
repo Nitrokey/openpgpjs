@@ -11,18 +11,26 @@
   <script src="./src/ciphers/asymmetric/jsbn2.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/ciphers/asymmetric/rsa.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/ciphers/hash/sha.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/ciphers/symmetric/aes.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/ciphers/symmetric/cast5.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/ciphers/openpgp.cfb.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/ciphers/openpgp.crypto.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/ciphers/openpgp.crypto.sym.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/config/openpgp.config.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/compression/zlib/jsxcompressor.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/encoding/base64.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/encoding/openpgp.encoding.asciiarmor.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/encoding/openpgp.encoding.der.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/encoding/openpgp.encoding.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/packet/openpgp.packet.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/packet/openpgp.packet.compressed.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/packet/openpgp.packet.encryptedsessionkey.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/packet/openpgp.packet.encryptedintegrityprotecteddata.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/packet/openpgp.packet.keymaterial.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/packet/openpgp.packet.literaldata.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/packet/openpgp.packet.signature.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/packet/openpgp.packet.userid.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/type/openpgp.type.keyid.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/type/openpgp.type.mpi.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/type/openpgp.type.s2k.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/util/util.js" type="text/javascript" charset="utf-8"></script>
@@ -47,7 +55,7 @@
     <a href="#sect_importpub">Import a public key</a> |
     <a href="#sect_genkey">Generate a key</a> |
     <a href="#sect_keyring">List keys in the keyring</a> |
-    <a href="#sect_sign">Sign some text</a>
+    <a href="#sect_sign">Sign, verify, decrypt</a>
   </p>
 
   <h2><a id="sect_listkeys">List keys</a></h2>
@@ -83,7 +91,7 @@
     <a href="#sect_importpub">Import a public key</a> |
     <a href="#sect_genkey">Generate a key</a> |
     <a href="#sect_keyring">List keys in the keyring</a> |
-    <a href="#sect_sign">Sign some text</a>
+    <a href="#sect_sign">Sign, verify, decrypt</a>
   </p>
 
   <h2><a id="sect_genkey">Generate a key</a></h2>
@@ -104,7 +112,7 @@
     <a href="#sect_importpub">Import a public key</a> |
     <a href="#sect_genkey">Generate a key</a> |
     <a href="#sect_keyring">List keys in the keyring</a> |
-    <a href="#sect_sign">Sign some text</a>
+    <a href="#sect_sign">Sign, verify, decrypt</a>
   </p>
 
   <h2><a id="sect_importpub">Import a public key</a></h2>
@@ -131,7 +139,7 @@
     <a href="#sect_importpub">Import a public key</a> |
     <a href="#sect_genkey">Generate a key</a> |
     <a href="#sect_keyring">List keys in the keyring</a> |
-    <a href="#sect_sign">Sign some text</a>
+    <a href="#sect_sign">Sign, verify, decrypt</a>
   </p>
 
   <h2><a id="sect_keyring">List keys in the keyring</a></h2>
@@ -154,18 +162,18 @@
     <a href="#sect_importpub">Import a public key</a> |
     <a href="#sect_genkey">Generate a key</a> |
     <a href="#sect_keyring">List keys in the keyring</a> |
-    <a href="#sect_sign">Sign some text</a>
+    <a href="#sect_sign">Sign, verify, decrypt</a>
   </p>
 
-  <h2><a id="sect_sign">Sign some text</a></h2>
+  <h2><a id="sect_sign">Sign, verify, decrypt</a></h2>
 
   <form action="signtest1sign" method="POST" name="signform" id="signform" onsubmit="return dosign()">
     <p>Now enter some text here:</p>
     <textarea rows="5" cols="100" name="signplain" id="signplain">This is a test. This is only a test.</textarea>
-    <p>&#8230;and click this button:
+    <p>&#8230;and click one of these buttons:
       <input type="submit" id="sign" value="Sign" onclick="submitButton='sign'" />
-      and then
       <input type="submit" id="verify" value="Verify" onclick="submitButton='verify'" />
+      <input type="submit" id="decrypt" value="Decrypt" onclick="submitButton='decrypt'" />
       </p>
     <textarea rows="25" cols="100" name="signsigned", id="signsigned">&nbsp;</textarea>
   </form>
@@ -175,7 +183,7 @@
     <a href="#sect_importpub">Import a public key</a> |
     <a href="#sect_genkey">Generate a key</a> |
     <a href="#sect_keyring">List keys in the keyring</a> |
-    <a href="#sect_sign">Sign some text</a>
+    <a href="#sect_sign">Sign, verify, decrypt</a>
   </p>
 </body>
 </html>

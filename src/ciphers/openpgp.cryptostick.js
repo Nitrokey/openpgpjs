@@ -35,6 +35,9 @@ function openpgp_cryptostick_init(window)
 	that.crypto = window.cryptostick.crypto;
 	that.subtle = {
 		exportKey: window.cryptostick.crypto.subtle.exportKey,
+
+		decrypt: window.cryptostick.crypto.subtle.decrypt,
+
 		sign: function (algo, key, data) {
 			var m = openpgp_encoding_emsa_pkcs1_encode_to_string(
 			    8, util.bin2str(data), key.opgp.numBits / 8);

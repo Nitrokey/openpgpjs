@@ -376,7 +376,7 @@ function keyExpansion(key)
   }
   else
   {
-	util.print_error('aes.js: Invalid key-length for AES key:'+keylen);
+	throw 'aes.js: Invalid key-length for AES key:';
    return;
   }
 

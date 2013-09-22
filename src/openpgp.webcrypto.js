@@ -614,3 +614,47 @@ function openpgp_webcrypto_matchKey(provider, pubkey, mainKeyId, provKeys)
 	}
 	return res;
 }
+
+function openpgp_crypto_asymmetricDecrypt(algo, key, MPIs)
+{
+	var res = new openpgp_promise();
+	var toMPI, data;
+	switch (algo) {
+		case 1:
+			algo = { name: 'RSAES-PKCS1-v1_5', params: { } };
+			toMPI = true;
+			data = MPIs[0].toBigInteger().toByteArray();
+			break;
+
+		default:
+			res._onerror({ target: { result: "Unsupported OpenPGP decryption algorithm " + algo } });
+			return res;
+	}
+
+	var prov = openpgp_webcrypto_provider_get_first([key.opgp.provider.name]);
+	if (prov == null) {
+		res._onerror({ target: { result: "The WebCrypto provider " + key.opgp.provider.name + " failed to initialize" } });
+		return res;
+	}
+
+	prov.subtle.decrypt(algo, key, data).then(
+		function (r) {
+			try {
+				if (toMPI) {
+					var mp = new BigInteger();
+					mp.fromString(r.target.result, 256);
+					res._oncomplete({ target: { result: mp } });
+				} else {
+					res._oncomplete(r);
+				}
+			} catch (err) {
+				console.log(err.toString()); console.log(err); console.log(err.stack);
+				res._onerror({ target: { result: "Could not parse the asymmetrically decrypted data: " + err } });
+			}
+		},
+		function (e) {
+			res._onerror(e);
+		}
+	);
+	return res;
+}

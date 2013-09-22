@@ -246,11 +246,50 @@ function doverify()
 	return false;
 }
 
+function dodecrypt()
+{
+	try {
+		var data = $('textarea#signplain').val().trim();
+
+		if (data == "") {
+			window.alert("Please enter an OpenPGP message");
+			return false;
+		}
+		initialize_openpgp();
+
+		openpgp.decrypt_armored_message(data).then(
+			function (r) {
+				try {
+					console.log("RDBG decrypt_armored_message returned:"); console.log(r);
+					var data = r.target.result;
+					var s = "Decrypted " + data.length + " packet" +
+					    (data.length == 1? "": "s") + ":\n";
+					for (var i = 0; i < data.length; i++)
+						s += "--------\n\n" + data[i] + "\n";
+					$('textarea#signsigned').val(s);
+				} catch (err) {
+					console.log(err.toString()); console.log(err); console.log(err.stack);
+					window.alert("Could not parse the decrypted data: " + err);
+				}
+			},
+			function (e) {
+				window.alert("Could not decrypt the OpenPGP message: " + e.target.result);
+			}
+		);
+	} catch (err) {
+		console.log(err.toString()); console.log(err); console.log(err.stack);
+		window.alert("dodecrypt() error: " + err);
+	}
+	return false;
+}
+
 function dosign()
 {
 	try {
 		if (submitButton == "verify") {
 			return doverify();
+		} else if (submitButton == "decrypt") {
+			return dodecrypt();
 		} else if (submitButton != "sign") {
 			window.alert("Internal signtest/dosign() error: unexpected submitButton value '" + submitButton + "'");
 			return false;

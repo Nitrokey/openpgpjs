@@ -122,7 +122,6 @@ function openpgp_packet_encryptedintegrityprotecteddata() {
 				symmetric_algorithm_type, key, this.encryptedData)
 				+ this.decryptedData.substring(0,
 						this.decryptedData.length - 20));
-		util.print_debug_hexstr_dump("calc hash = ", this.hash);
 		if (this.hash == this.decryptedData.substring(
 				this.decryptedData.length - 20, this.decryptedData.length))
 			return this.decryptedData;
@@ -134,9 +133,11 @@ function openpgp_packet_encryptedintegrityprotecteddata() {
 
 	function toString() {
 	    var data = '';
+	    /*
 	    if(openpgp.config.debug)
 	        data = '    data: Bytes ['
 				+ util.hexstrdump(this.encryptedData) + ']';
+				*/
 	    
 		return '5.13.  Sym. Encrypted Integrity Protected Data Packet (Tag 18)\n'
 				+ '    length:  '
