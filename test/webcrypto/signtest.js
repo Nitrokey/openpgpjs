@@ -315,24 +315,13 @@ function doimportpub()
 					*/
 					openpgp_webcrypto_pair2webcrypto_store(pair);
 
-					for (i = 0; i < openpgp.keyring.publicKeys.length; i++) {
-						var fp = util.hexstrdump(
-						    openpgp.keyring.publicKeys[i].obj.getFingerprint());
-						if (fp != pair.id)
-							continue;
-						console.log("About to remove public key " + fp + " (position " + i + ") from the keyring");
-						openpgp.keyring.removePublicKey(i);
-						i--;
+					openpgp.keyring.removePublicKeysForKeyId(pair.id);
+					openpgp.keyring.removePrivateKeysForKeyId(pair.id);
+					for (var sname in pair.subKeys) {
+						openpgp.keyring.removePublicKeysForKeyId(pair.subKeys[sname].id);
+						openpgp.keyring.removePrivateKeysForKeyId(pair.subKeys[sname].id);
 					}
-					for (i = 0; i < openpgp.keyring.privateKeys.length; i++) {
-						var fp = util.hexstrdump(
-						    openpgp.keyring.privateKeys[i].obj.getFingerprint());
-						if (fp != pair.id)
-							continue;
-						console.log("About to remove private key " + fp + " (position " + i + ") from the keyring");
-						openpgp.keyring.removePrivateKey(i);
-						i--;
-					}
+
 					openpgp.keyring.importWebCryptoKeyPair(pair).then(
 						function (r) {
 							window.alert("Key imported!");

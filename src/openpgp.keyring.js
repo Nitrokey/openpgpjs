@@ -137,28 +137,32 @@ function openpgp_keyring() {
 	}
 
 	this.getPrivateKeyForAddress = getPrivateKeyForAddress;
+
+	_keyId_pat = new RegExp('^[0-9a-fA-F]+$');
+
 	/**
 	 * Searches the keyring for public keys having the specified key id
 	 * @param {String} keyId provided as string of hex number (lowercase)
 	 * @return {openpgp_msg_privatekey[]} public keys found
 	 */
 	function getPublicKeysForKeyId(keyId) {
+		if (keyId.match(_keyId_pat))
+			keyId = util.hex2bin(keyId);
+
 		var result = new Array();
 		for (var i=0; i < this.publicKeys.length; i++) {
 			var key = this.publicKeys[i];
-			if (keyId == key.obj.getKeyId())
+			if (keyId == key.obj.getKeyId() || keyId == key.obj.getFingerprint())
 				result[result.length] = key;
-			else if (key.obj.subKeys != null) {
+			else if (key.obj.subKeys != null)
 				for (var j=0; j < key.obj.subKeys.length; j++) {
 					var subkey = key.obj.subKeys[j];
-					if (keyId == subkey.getKeyId()) {
+					if (keyId == subkey.getKeyId() || keyId == subkey.getFingerprint())
 						result[result.length] = {
 								obj: key.obj.getSubKeyAsKey(j),
 								keyId: subkey.getKeyId()
 						}
-					}
 				}
-			}
 		}
 		return result;
 	}
@@ -170,17 +174,21 @@ function openpgp_keyring() {
 	 * @return {openpgp_msg_privatekey[]} private keys found
 	 */
 	function getPrivateKeyForKeyId(keyId) {
+		if (keyId.match(_keyId_pat))
+			keyId = util.hex2bin(keyId);
+
 		var result = new Array();
 		for (var i=0; i < this.privateKeys.length; i++) {
-			if (keyId == this.privateKeys[i].obj.getKeyId()) {
+			if (keyId == this.privateKeys[i].obj.getKeyId() ||
+			    keyId == this.privateKeys[i].obj.getFingerprint()) {
 				result[result.length] = { key: this.privateKeys[i], keymaterial: this.privateKeys[i].obj.privateKeyPacket};
 			}
 			if (this.privateKeys[i].obj.subKeys != null) {
 				var subkeyids = this.privateKeys[i].obj.getSubKeyIds();
-				for (var j=0; j < subkeyids.length; j++)
-					if (keyId == util.hexstrdump(subkeyids[j])) {
+				for (var j=0; j < this.privateKeys[i].obj.subKeys.length; j++)
+					if (keyId == this.privateKeys[i].obj.subKeys[j].getKeyId() ||
+					    keyId == this.privateKeys[i].obj.subKeys[j].getFingerprint())
 						result[result.length] = { key: this.privateKeys[i], keymaterial: this.privateKeys[i].obj.subKeys[j]};
-					}
 			}
 		}
 		return result;
@@ -259,35 +267,19 @@ function openpgp_keyring() {
 	function getWebCryptoPairById(id) {
 		var res = new openpgp_promise();
 
-		id = id.toUpperCase();
-
-		var privKey;
-		for (var i = 0; i < this.privateKeys.length; i++) {
-			var k = this.privateKeys[i];
-			if (id == util.hexstrdump(k.keyId).toUpperCase() ||
-			    id == util.hexstrdump(k.obj.getFingerprint()).toUpperCase()) {
-				privKey = k;
-				break;
-			}
-		}
-		if (privKey == null) {
+		var privKey = this.getPrivateKeyForKeyId(id);
+		if (privKey == null || privKey.length == 0) {
 			res._oncomplete({ target: { result: null } });
 			return res;
 		}
+		privKey = privKey[privKey.length - 1].key;
 
-		var pubKey;
-		for (var i = 0; i < this.publicKeys.length; i++) {
-			var k = this.publicKeys[i];
-			if (id == util.hexstrdump(k.keyId).toUpperCase() ||
-			    id == util.hexstrdump(k.obj.getFingerprint()).toUpperCase()) {
-				pubKey = k;
-				break;
-			}
-		}
-		if (pubKey == null) {
+		var pubKey = this.getPublicKeysForKeyId(id);
+		if (pubKey == null || pubKey.length == 0) {
 			res._oncomplete({ target: { result: null } });
 			return res;
 		}
+		pubKey = pubKey[pubKey.length - 1];
 
 		var pair = privKey.obj.privateKeyPacket.webCryptoPair;
 		if (pair == null) {
@@ -363,6 +355,69 @@ function openpgp_keyring() {
 		return removed;
 	}
 	this.removePublicKey = removePublicKey;
+
+	function removePublicKeysForKeyId(keyId) {
+		if (keyId.match(_keyId_pat))
+			keyId = util.hex2bin(keyId);
+
+		var store = false;
+		for (var i = this.publicKeys.length - 1; i >= 0; i--) {
+			var key = this.publicKeys[i];
+			var found = false;
+
+			if (keyId == key.obj.getKeyId() || keyId == key.obj.getFingerprint())
+				found = true;
+			else if (key.obj.subKeys != null)
+				for (var j=0; j < key.obj.subKeys.length; j++) {
+					var subkey = key.obj.subKeys[j];
+					if (keyId == subkey.getKeyId() || keyId == subkey.getFingerprint()) {
+						found = true;
+						break;
+					}
+				}
+
+			if (found) {
+				this.publicKeys.splice(i, 1);
+				store = true;
+			}
+		}
+		if (store)
+			this.store();
+		return store;
+	}
+	this.removePublicKeysForKeyId = removePublicKeysForKeyId;
+
+	function removePrivateKeysForKeyId(keyId) {
+		if (keyId.match(_keyId_pat))
+			keyId = util.hex2bin(keyId);
+
+		var store = false;
+		for (var i = this.privateKeys.length - 1; i >= 0; i--) {
+			var found = false;
+
+			if (keyId == this.privateKeys[i].obj.getKeyId() ||
+			    keyId == this.privateKeys[i].obj.getFingerprint())
+				found = true;
+			else if (this.privateKeys[i].obj.subKeys != null) {
+				for (var j=0; j < this.privateKeys[i].obj.subKeys.length; j++)
+					if (keyId == this.privateKeys[i].obj.subKeys[j].getKeyId() ||
+					    keyId == this.privateKeys[i].obj.subKeys[j].getFingerprint()) {
+						found = true;
+						break;
+					}
+			}
+
+			if (found) {
+				this.privateKeys.splice(i, 1);
+				store = true;
+			}
+		}
+
+		if (store)
+			this.store();
+		return store;
+	}
+	this.removePrivateKeysForKeyId = removePrivateKeysForKeyId;
 
 	/**
 	 * returns the openpgp_msg_privatekey representation of the private key at private key ring index  
