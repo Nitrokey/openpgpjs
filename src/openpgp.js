@@ -432,6 +432,33 @@ function _openpgp () {
 		return res;
 	}
 	
+	function verify_armored_message(data)
+	{
+		var res = new openpgp_promise();
+
+		if (data.substring(0, 11) == "-----BEGIN ") {
+			data = openpgp_encoding_deArmor(data);
+			if (!data) {
+				res._onerror({ target: { result:
+				    'Could not dearmor the OpenPGP message'
+				} });
+				return res;
+			}
+		}
+		var packets = read_messages_dearmored(data);
+		if (packets == null || packets.length == 0) {
+			res._onerror({ target: { result:
+			    'Could not read OpenPGP message packets' } });
+			return res;
+		} else if (packets[0].verifySignature == null) {
+			res._onerror({ target: { result:
+			    'Not an OpenPGP signed message' } });
+			return res;
+		}
+		return packets[0].verifySignature();
+	}
+	this.verify_armored_message = verify_armored_message;
+
 	/**
 	 * Extract a RSA keypair from a SPKI DER sequence.
 	 */

@@ -80,7 +80,9 @@ function openpgp_msg_message() {
 	 * @return {boolean} true if the signature was correct; otherwise false
 	 */
 	function verifySignature(pubkey) {
-		var result = false;
+		var res = new openpgp_promise();
+		var result = { ok: true, keysBad: [], uidsBad: [], keysOK: [], uidsOK: [], keysUnknown: [] };
+
 		if (this.signature.tagType == 2) {
 		    if(!pubkey || pubkey.length == 0){
 			    var pubkey;
@@ -89,25 +91,30 @@ function openpgp_msg_message() {
 			    } else if (this.signature.version == 3) {
 				    pubkey = openpgp.keyring.getPublicKeysForKeyId(this.signature.keyId);
 			    } else {
-				    util.print_error("unknown signature type on message!");
-				    return false;
+				    res._onerror({ target: { result: "unknown signature type on message!" } });
+				    return res;
 			    }
 			}
-			if (pubkey.length == 0)
-				util.print_warning("Unable to verify signature of issuer: "+util.hexstrdump(this.signature.issuerKeyId)+". Public key not found in keyring.");
-			else {
+			if (pubkey.length == 0) {
+				result.ok = false;
+				result.keysUnknown[result.keysUnknown.length] =
+				    util.hexstrdump(this.signature.issuerKeyId);
+			} else {
 				for (var i = 0 ; i < pubkey.length; i++) {
 					var tohash = this.text.replace(/\r\n/g,"\n").replace(/\n/g,"\r\n");
 					if (this.signature.verify(tohash, pubkey[i])) {
-						util.print_info("Found Good Signature from "+pubkey[i].obj.userIds[0].text+" (0x"+util.hexstrdump(pubkey[i].obj.getKeyId()).substring(8)+")");
-						result = true;
+						result.keysOK[result.keysOK.length] = util.hexstrdump(pubkey[i].obj.getKeyId());
+						result.uidsOK[result.uidsOK.length] = pubkey[i].obj.userIds[0].text;
 					} else {
-						util.print_error("Signature verification failed: Bad Signature from "+pubkey[i].obj.userIds[0].text+" (0x"+util.hexstrdump(pubkey[0].obj.getKeyId()).substring(8)+")");
+						result.ok = false;
+						result.keysBad[result.keysBad.length] = util.hexstrdump(pubkey[i].obj.getKeyId());
+						result.uidsBad[result.uidsBad.length] = pubkey[i].obj.userIds[0].text;
 					}
 				}
 			}
 		}
-		return result;
+		res._oncomplete({ target: { result: result } });
+		return res;
 	}
 	
 	function toString() {

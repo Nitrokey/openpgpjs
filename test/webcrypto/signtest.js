@@ -199,9 +199,62 @@ function dofetchkey()
 	return false;
 }
 
+function doverify()
+{
+	try {
+		var text = $('textarea#signsigned').val().trim();
+		if (text == '') {
+			window.alert("Please sign a message first");
+			return false;
+		}
+		initialize_openpgp();
+
+		openpgp.verify_armored_message(text).then(
+			function (r) {
+				console.log("RDBG verify_armored_message returned:"); console.log(r.target.result);
+				r = r.target.result;
+				if (r.ok) {
+					var s = "The message was verified " +
+					    "successfully, good signature " +
+					    "from";
+					for (var i = 0; i < r.keysOK.length; i++)
+						s += " " + r.uidsOK[i] + " (0x" + r.keysOK[i] + ")";
+					window.alert(s);
+				} else {
+					var s = "Unable to verify the message;";
+					if (r.keysBad.length > 0) {
+						s += " BAD signature from";
+						for (var i = 0; i < r.keysBad.length; i++)
+							s += " " + r.uidsBad[i] + " (0x" + r.keysBad[i] + ")";
+					}
+					if (r.keysUnknown.length > 0) {
+						s += " unknown OpenPGP key";
+						for (var i = 0; i < r.keysUnknown.length; i++)
+							s += " 0x" + r.keysUnknown[i];
+					}
+					window.alert(s);
+				}
+			},
+			function (e) {
+				window.alert("Could not verify the message: " + e.target.result);
+			}
+		);
+	} catch (err) {
+		console.log(err.toString()); console.log(err); console.log(err.stack);
+		window.alert("doverify() error: " + err);
+	}
+	return false;
+}
+
 function dosign()
 {
 	try {
+		if (submitButton == "verify") {
+			return doverify();
+		} else if (submitButton != "sign") {
+			window.alert("Internal signtest/dosign() error: unexpected submitButton value '" + submitButton + "'");
+			return false;
+		}
 		window.alert("dosign() starting");
 		if (generatedKeypair == null) {
 			window.alert("Please generate a key first");

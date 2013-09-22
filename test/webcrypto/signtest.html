@@ -27,6 +27,7 @@
   <script src="./src/type/openpgp.type.s2k.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/util/util.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/openpgp.keyring.js" type="text/javascript" charset="utf-8"></script>
+  <script src="./src/openpgp.msg.message.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/openpgp.msg.privatekey.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/openpgp.msg.publickey.js" type="text/javascript" charset="utf-8"></script>
   <script src="./src/openpgp.promise.js" type="text/javascript" charset="utf-8"></script>
@@ -162,7 +163,9 @@
     <p>Now enter some text here:</p>
     <textarea rows="5" cols="100" name="signplain" id="signplain">This is a test. This is only a test.</textarea>
     <p>&#8230;and click this button:
-      <input type="submit" id="sign" value="Sign" />
+      <input type="submit" id="sign" value="Sign" onclick="submitButton='sign'" />
+      and then
+      <input type="submit" id="verify" value="Verify" onclick="submitButton='verify'" />
       </p>
     <textarea rows="25" cols="100" name="signsigned", id="signsigned">&nbsp;</textarea>
   </form>
