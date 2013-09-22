@@ -33,7 +33,39 @@ function openpgp_cryptostick_init(window)
 	var that = {};
 
 	that.crypto = window.cryptostick.crypto;
-	that.subtle = window.cryptostick.crypto.subtle;
+	that.subtle = {
+		exportKey: window.cryptostick.crypto.subtle.exportKey,
+		sign: function (algo, key, data) {
+			var m = openpgp_encoding_emsa_pkcs1_encode_to_string(
+			    8, util.bin2str(data), key.opgp.numBits / 8);
+			var ua = util.str2bin(m);
+			/* OK, let's try something crazy now... unpad! */
+			if (ua[0] != 0 || ua[1] != 1) {
+				var res = new openpgp_promise();
+
+				res._onerror({ target: { result:
+				    'OpenPGP.js CryptoStick internal error: ' +
+				    'the EMSA-padded stuff did not start ' +
+				    'with 00 01' } });
+				return res;
+			}
+			for (var xx = 2; xx < ua.length; xx++)
+				if (ua[xx] != 255)
+					break;
+			if (xx == ua.length || ua[xx] != 0) {
+				var res = new openpgp_promise();
+
+				res._onerror({ target: { result:
+				    'OpenPGP.js CryptoStick internal error: ' +
+				    'the EMSA-padded stuff did not have ' +
+				    'the 00 marker and/or data' } });
+				return res;
+			}
+			ua = util.subarray(ua, xx + 1);
+			return window.cryptostick.crypto.subtle.sign(
+			    algo, key, ua);
+		}
+	};
 	that.cryptokeys = {
 		getKeyByName: function (name) {
 			var res = new openpgp_promise();

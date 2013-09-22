@@ -103,7 +103,7 @@ hash_headers[11] = [0x30,0x31,0x30,0x0d,0x06,0x09,0x60,0x86,0x48,0x01,0x65,0x03,
  * @param {Integer} keylength Key size of the public mpi in bytes
  * @returns {String} Hashcode with pkcs1padding as string
  */
-function openpgp_encoding_emsa_pkcs1_encode(algo, data, keylength) {
+function openpgp_encoding_emsa_pkcs1_encode_to_string(algo, data, keylength) {
 	var data2 = "";
 	data2 += String.fromCharCode(0x00);
 	data2 += String.fromCharCode(0x01);
@@ -115,6 +115,11 @@ function openpgp_encoding_emsa_pkcs1_encode(algo, data, keylength) {
 		data2 += String.fromCharCode(hash_headers[algo][i]);
 	
 	data2 += openpgp_crypto_hashData(algo, data);
+	return data2;
+}
+
+function openpgp_encoding_emsa_pkcs1_encode(algo, data, keyLength) {
+	data2 = openpgp_encoding_emsa_pkcs1_encode_to_string(algo, data, keyLength);
 	return new BigInteger(util.hexstrdump(data2),16);
 }
 
