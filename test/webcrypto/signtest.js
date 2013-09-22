@@ -393,7 +393,6 @@ function dokeyring()
 		var s = "Private keyring: " + keys.length + " key" +
 		    (keys.length != 1? "s": "") + "\n";
 		for (var i = 0; i < keys.length; i++) {
-			console.log(keys[i]);
 			s += "Key " + util.hexstrdump(keys[i].keyId) + "\n";
 			var pair = keys[i].obj.privateKeyPacket.webCryptoPair;
 			if (pair == null) {
