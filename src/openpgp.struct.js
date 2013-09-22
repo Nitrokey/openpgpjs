@@ -42,12 +42,15 @@ function openpgp_keypair()
 	}
 
 	this.id = null;
+	this.mainKeyId = null;
 	this.symmetricEncryptionAlgorithm = null;
 	this.timePacket = null;
 	this.privateKey = null;
 	this.publicKey = null;
 	this.publicKeyArmored = null;
 	this.privateKeyArmored = null;
+
+	this.subKeys = {};
 
 	this.fromRawPair = fromRawPair;
 }
@@ -80,16 +83,18 @@ function openpgp_webcrypto_provider()
 	this.initAttempted = false;
 }
 
-function openpgp_pair2webcrypto_key(_type, _name, _id)
+function openpgp_pair2webcrypto_subkey(_type, _name, _id)
 {
 	this.type = _type;
 	this.name = _name;
 	this.id = _id;
 }
 
-function openpgp_pair2webcrypto(_id, _provider)
+function openpgp_pair2webcrypto_subpair(_id, _provider, _mainKeyId)
 {
 	this.keyId = _id;
+	this.mainKeyId = _mainKeyId != null? _mainKeyId: _id;
 	this.webProvider = _provider;
 	this.webKeys = {};
+	this.subKeys = [];
 }

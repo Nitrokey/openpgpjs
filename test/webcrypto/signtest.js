@@ -366,17 +366,20 @@ function dokeyring_weball()
 		initialize_openpgp();
 
 		var arr = openpgp_webcrypto_pair2webcrypto_fetch_all();
+		console.log("RDBG arr:"); console.log(arr);
 		s = "";
 		for (var name in arr) {
 			var wpair = arr[name];
 
 			s += "WebCrypto pair " + name + ": provider " + wpair.webProvider +
 			    " id " + wpair.keyId + "\n";
+			console.log("RDBG - webKeys:"); console.log(wpair.webKeys);
 			for (var ktype in wpair.webKeys) {
 				var wk = wpair.webKeys[ktype];
 				s += "- " + ktype + ": type " + wk.type +
 				    " name " + wk.name +
 				    " id " + wk.id +
+				    " subkeys " + (wpair.subKeys == null || wpair.subKeys.length == 0? "(none)": wpair.subKeys.join(' ')) +
 				    "\n";
 			}
 			s += "\n";

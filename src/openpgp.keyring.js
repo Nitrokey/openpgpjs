@@ -220,20 +220,38 @@ function openpgp_keyring() {
 		var res = new openpgp_promise();
 
 		if (pair.publicKeyArmored == null) {
-			res._onerror({ target: { result: 'No armored public key passed to importWebCryptoKeyPair()' } });
+			res._onerror({ target: { result: 'No armored public key passed to importWebCryptoKeyPair(' + pair.id + ')' } });
 			return res;
 		} else if (pair.privateKeyArmored == null) {
-			res._onerror({ target: { result: 'No armored private key passed to importWebCryptoKeyPair()' } });
+			res._onerror({ target: { result: 'No armored private key passed to importWebCryptoKeyPair(' + pair.id + ')' } });
 			return res;
 		}
 		if (!this.importPublicKey(pair.publicKeyArmored)) {
-			res._onerror({ target: { result: 'Failed to import the public key into the keyring' } });
+			res._onerror({ target: { result: 'Failed to import the public key for ' + pair.id + ' into the keyring' } });
 			return res;
 		}
-		if (!this.importPrivateKey(pair.privateKeyArmored, '', !pair.privateKey.extractable))
-			res._onerror({ target: { result: 'Failed to import the private key into the keyring' } });
-		else
-			res._oncomplete(true);
+		if (!this.importPrivateKey(pair.privateKeyArmored, '', !pair.privateKey.extractable)) {
+			res._onerror({ target: { result: 'Failed to import the private key for ' + pair.id + ' into the keyring' } });
+			return res;
+		}
+
+		var subkeys = [];
+		for (var name in pair.subKeys)
+			if (pair.subKeys.hasOwnProperty(name))
+				subkeys[subkeys.length] = pair.subKeys[name];
+		var idx = 0;
+		var self = this;
+		function next_subkey() {
+			if (idx == subkeys.length)
+				res._oncomplete(true);
+			else
+				self.importWebCryptoKeyPair(subkeys[idx++]).then(
+					next_subkey,
+					function (e) { res._onerror(e); }
+				);
+		}
+		next_subkey();
+
 		return res;
 	}
 	this.importWebCryptoKeyPair = importWebCryptoKeyPair;

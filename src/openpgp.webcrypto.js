@@ -137,15 +137,21 @@ function openpgp_webcrypto_pair2webcrypto_store(pair)
 {
 	var p2wc;
 
-	p2wc = new openpgp_pair2webcrypto(pair.id, pair.publicKey.opgp.provider.name);
+	p2wc = new openpgp_pair2webcrypto_subpair(pair.id,
+	    pair.publicKey.opgp.provider.name, pair.mainKeyId);
 
 	var have = false;
 	if (pair.publicKey.name != null)
-		p2wc.webKeys['public'] = new openpgp_pair2webcrypto_key(
+		p2wc.webKeys['public'] = new openpgp_pair2webcrypto_subkey(
 		    'public', pair.publicKey.name, pair.publicKey.id);
 	if (pair.privateKey.name != null)
-		p2wc.webKeys['private'] = new openpgp_pair2webcrypto_key(
+		p2wc.webKeys['private'] = new openpgp_pair2webcrypto_subkey(
 		    'private', pair.privateKey.name, pair.privateKey.id);
+
+	for (var sid in pair.subKeys) {
+		openpgp_webcrypto_pair2webcrypto_store(pair.subKeys[sid]);
+		p2wc.subKeys[p2wc.subKeys.length] = sid;
+	}
 
 	if (Object.keys(p2wc.webKeys).length > 0) {
 		window.localStorage['openpgp.webcrypto.pair.' + pair.id] = JSON.stringify(p2wc);
@@ -397,21 +403,40 @@ function openpgp_webcrypto_get_all_keys(provider)
 	/* NOTREACHED */
 }
 
-function openpgp_webcrypto_matchKey(provider, pubkey)
+function openpgp_webcrypto_matchKey(provider, pubkey, mainKeyId, provKeys)
 {
 	var res = new openpgp_promise();
 	try {
-		var sk = pubkey[0].getSigningKey();
+		var skeytype = mainKeyId == null? "key": "subkey";
+		var sk;
+
+		if (mainKeyId != null) {
+			console.log("RDBG matchKey for a subkey: provider, pubkey, mainKeyId, provKeys:"); console.log(provider); console.log(pubkey); console.log(mainKeyId); console.log(provKeys);
+			console.log("RDBG - does this data seem suitable?"); console.log(util.hexstrdump(pubkey.data));
+			console.log("RDBG - data.length " + pubkey.data.length + " packetdata.length " + pubkey.packetdata.length);
+			sk = pubkey;
+		} else {
+			pubkey = pubkey[0];
+			sk = pubkey.getSigningKey();
+		}
 		if (sk == null) {
-			res._onerror({ target: { result: 'Invalid OpenPGP public key packet passed to openpgp_webcrypto_matchKey' } });
+			res._onerror({ target: { result:
+			    'Invalid OpenPGP public ' + skeytype +
+			    'packet passed to openpgp_webcrypto_matchKey' } });
 			return res;
 		}
+		var skeyid = util.hexstrdump(sk.getKeyId());
 
 		var algo;
 		var data = {};
 		switch (sk.publicKeyAlgorithm) {
 			case 1:
-				algo = 'RSASSA-PKCS1-v1_5';
+				if (mainKeyId == null || sk.subKeySignature.keyFlags & 32 != 0) {
+					algo = 'RSASSA-PKCS1-v1_5';
+				} else {
+					algo = 'RSAES-PKCS1-v1_5';
+				}
+				console.log("RDBG - divined algorithm " + algo + " for " + skeytype + " " + skeyid);
 				data['modulus'] = sk.MPIs[0];
 				data['exponent'] = sk.MPIs[1];
 				break;
@@ -473,8 +498,43 @@ function openpgp_webcrypto_matchKey(provider, pubkey)
 				console.log("RDBG - header: " + util.hexstrdump(priv.header));
 				console.log("RDBG - body: " + util.hexstrdump(priv.body));
 				console.log("RDBG - string: " + util.hexstrdump(priv.string));
-				keyPair.privateKeyArmored = openpgp_encoding_armor(5, priv.string + sk.data.substring(pubkey[0].publicKeyPacket.data.length));
-				res._oncomplete({ target: { result: keyPair } });
+				var keystuff = priv.string;
+				if (mainKeyId == null)
+					keystuff += sk.data.substring(pubkey.publicKeyPacket.data.length);
+				keyPair.privateKeyArmored = openpgp_encoding_armor(5, keystuff);
+				keyPair.subKeys = {};
+
+				var subkeys = pubkey.subKeys;
+				if (mainKeyId != null || subkeys == null ||
+				    subkeys.length == 0) {
+					res._oncomplete({ target:
+					    { result: keyPair } });
+					return;
+				}
+				console.log("RDBG going for " + subkeys.length + " subkeys to key " + keyPair.id);
+				var subidx = 0;
+
+				function got_subkey(r) {
+					console.log("RDBG got a subkey:"); console.log(r);
+					keyPair.subKeys[r.target.result.id] =
+					    r.target.result;
+					next_subkey();
+				}
+
+				function next_subkey() {
+					if (subidx == subkeys.length) {
+						res._oncomplete({ target:
+						    { result: keyPair } });
+						return;
+					}
+					openpgp_webcrypto_matchKey(provider,
+					    subkeys[subidx++], keyPair.id,
+					    keys).then(
+					    got_subkey, pass_error);
+				}
+
+				next_subkey();
+				return;
 			} catch (err) {
 				console.log(err.toString()); console.log(err); console.log(err.stack);
 				res._onerror({ target: { result: "Could not complete creating the imported WebCrypto keypair: " + err } });
@@ -512,6 +572,7 @@ function openpgp_webcrypto_matchKey(provider, pubkey)
 					return;
 				}
 
+				console.log("RDBG Whee, found a webkey for " + skeytype + " " + skeyid);
 				var privKey = k.opgp.provider.opgp.getMatchingPrivateKey(k, keys);
 				if (privKey == null) {
 					res._onerror({ target: { result: 'Could not fetch the matching private key' } });
@@ -521,6 +582,7 @@ function openpgp_webcrypto_matchKey(provider, pubkey)
 
 				keyPair = new openpgp_keypair();
 				keyPair.id = util.hexstrdump(sk.getFingerprint());
+				keyPair.mainKeyId = mainKeyId == null? keyPair.id: mainKeyId;
 				keyPair.publicKey = k;
 				keyPair.privateKey = privKey;
 				keyPair.timePacket = openpgp_crypto_dateToTimePacket(sk.creationTime);
@@ -530,7 +592,7 @@ function openpgp_webcrypto_matchKey(provider, pubkey)
 				console.log("RDBG - header: " + util.hexstrdump(pub.header));
 				console.log("RDBG - body: " + util.hexstrdump(pub.body));
 				console.log("RDBG - string: " + util.hexstrdump(pub.string));
-				keyPair.publicKeyArmored = openpgp_encoding_armor(4, pubkey[0].data);
+				keyPair.publicKeyArmored = openpgp_encoding_armor(4, pubkey.data);
 				keyPair.symmetricEncryptionAlgorithm = sk.symmetricEncryptionAlgorithm;
 				new openpgp_packet_keymaterial().write_private_key_webcrypto_stub(sk.publicKeyAlgorithm, publicRSAKey, privKey, keyPair.timePacket).then(
 				    private_stub_written, pass_error);
@@ -541,7 +603,10 @@ function openpgp_webcrypto_matchKey(provider, pubkey)
 			}
 		}
 
-		prov.cryptokeys.getKeyByName(null).then(process_keys, pass_error);
+		if (provKeys == null)
+			prov.cryptokeys.getKeyByName(null).then(process_keys, pass_error);
+		else
+			process_keys({ target: { result: provKeys } });
 	} catch (err) {
 		console.log(err.toString()); console.log(err); console.log(err.stack);
 		res._onerror({ target: { result: "Failed to match the key: " + err } });

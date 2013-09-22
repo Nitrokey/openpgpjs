@@ -350,13 +350,13 @@ function openpgp_packet_keymaterial() {
 
 		if (this.webCryptoPair != null) {
 			if (this.webCryptoPair.provider != provider)
-				throw 'read_priv_key(): trying to store a private WebCrypto key from provider "' + provider + '" into an already-initialized openpgp_pair2webcrypto object with provider "' + this.webCryptoPair.provider + '"';
+				throw 'read_priv_key(): trying to store a private WebCrypto key from provider "' + provider + '" into an already-initialized openpgp_pair2webcrypto_subpair object with provider "' + this.webCryptoPair.provider + '"';
 		} else {
-			this.webCryptoPair = new openpgp_pair2webcrypto(
+			this.webCryptoPair = new openpgp_pair2webcrypto_subpair(
 			    util.hexstrdump(this.publicKey.getFingerprint()),
 			    provider);
 		}
-		this.webCryptoPair.webKeys['private'] = new openpgp_pair2webcrypto_key('private', name, id);
+		this.webCryptoPair.webKeys['private'] = new openpgp_pair2webcrypto_subkey('private', name, id);
 	    } else if (this.s2kUsageConventions != 0 && this.s2k.type == 1001) {
 	    	this.secMPIs = null;
 	    	this.encryptedMPIData = null;
