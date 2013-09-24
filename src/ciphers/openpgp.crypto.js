@@ -60,22 +60,25 @@ function openpgp_crypto_asymetricEncrypt(algo, publicMPIs, data) {
  * @return {BigInteger} returns a big integer containing the decrypted data; otherwise null
  */
 
-function openpgp_crypto_asymmetricDecrypt_own(algo, publicMPIs, secretMPIs, dataMPIs) {
+function openpgp_crypto_asymmetricDecrypt_own(algo, key, data) {
 	var res = new openpgp_promise();
-	res._onerror({ target: { result: 'FIXME: openpgp_crypto_asymmetricDecrypt_own() not implemented yet' } });
-	return;
 
-	switch(algo) {
-	case 1: // RSA (Encrypt or Sign) [HAC]  
-	case 2: // RSA Encrypt-Only [HAC]
-	case 3: // RSA Sign-Only [HAC]
+	var dec;
+	switch(algo.name) {
+	case 'RSAES-PKCS1-v1_5':
+	case 'RSASSA-PKCS1-v1_5':
+		var k = key.opgp.own.k;
+		var m = new BigInteger();
+		m.fromString(data, 256);
 		var rsa = new RSA();
-		var d = secretMPIs[0].toBigInteger();
-		var p = secretMPIs[1].toBigInteger();
-		var q = secretMPIs[2].toBigInteger();
-		var u = secretMPIs[3].toBigInteger();
-		var m = dataMPIs[0].toBigInteger();
-		return rsa.decrypt(m, d, p, q, u);
+		dec = rsa.decrypt(m, k.d, k.p, k.q, k.u);
+		break;
+
+	default:
+		res._onerror({ target: { result: 'owncrypto.decrypt: unsupported encryption algorithm ' + algo.name } });
+		return res;
+
+		/*
 	case 16: // Elgamal (Encrypt-Only) [ELGAMAL] [HAC]
 		var elgamal = new Elgamal();
 		var x = secretMPIs[0].toBigInteger();
@@ -83,10 +86,12 @@ function openpgp_crypto_asymmetricDecrypt_own(algo, publicMPIs, secretMPIs, data
 		var c2 = dataMPIs[1].toBigInteger();
 		var p = publicMPIs[0].toBigInteger();
 		return elgamal.decrypt(c1,c2,p,x);
-	default:
-		return null;
+		*/
 	}
 	
+	dec = dec.toByteArray(0);
+	res._oncomplete({ target: { result: dec } });
+	return res;
 }
 
 /**

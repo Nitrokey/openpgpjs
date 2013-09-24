@@ -85,6 +85,19 @@ function openpgp_owncrypto_init(window)
 		return res;
 	}
 
+	that.subtle.decrypt = function (algo, key, buffer) {
+		var res = new openpgp_promise();
+		openpgp_crypto_asymmetricDecrypt_own(algo, key, buffer).then(
+			function (e) {
+				res._oncomplete({ target: { result: e } });
+			},
+			function (e) {
+				res._onerror(e)
+			}
+		);
+		return res;
+	}
+
 	that.cryptokeys.getKeyByName = function (name) {
 		return openpgp_crypto_getKeyByName_own(name);
 	}
