@@ -241,7 +241,7 @@ function openpgp_crypto_signData_own(algo, key, message) {
 		break;
 	
 	default:
-		res._onerror('openpgp_crypto_signData_own(): unsupported algorithm ' + algo.name);
+		res._onerror({ target: { result: 'openpgp_crypto_signData_own(): unsupported algorithm ' + algo.name } });
 		return res;
 	}
 
