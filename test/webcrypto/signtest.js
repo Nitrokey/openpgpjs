@@ -8,8 +8,8 @@ function initialize_openpgp(provlist)
 		return true;
 
 	if (provlist == null)
-		//provlist = ["cryptostick", "domcrypt", "nfwebcrypto", "owncrypto"];
-		provlist = ["cryptostick", "owncrypto"];
+		provlist = ["cryptostick", "domcrypt", "nfwebcrypto", "owncrypto"];
+		//provlist = ["cryptostick", "owncrypto"];
 	window.alert("Initializing OpenPGPjs...");
 	openpgp.init(provlist);
 	openpgp_initialized = true;
